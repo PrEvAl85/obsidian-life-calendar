@@ -317,6 +317,18 @@
   margin-top: 16px;
 }
 
+/* Настройки: поддержка проекта */
+.lc-support-desc {
+  color: var(--text-muted);
+  font-size: 13px;
+  margin: 0 0 12px;
+}
+.lc-modal h4,
+.vertical-tab-content-container h4 {
+  margin: 16px 0 4px;
+  color: var(--text-muted);
+}
+
 /* Окно недели */
 .lc-week-block {
   margin-bottom: 16px;

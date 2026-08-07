@@ -11,6 +11,8 @@ export interface LifeCalendarSettings {
   eventsFile: string;
   exportFile: string;
   custom: Record<string, WeekStyle>;
+  /** "" — авто (язык Obsidian), "ru" | "en" — явный выбор. */
+  language: string;
 }
 
 export interface JournalEntry {
@@ -56,6 +58,7 @@ export const DEFAULT_SETTINGS: LifeCalendarSettings = {
   eventsFile: "Life Calendar/Events.md",
   exportFile: "Life Calendar/backup.json",
   custom: {},
+  language: "",
 };
 
 export const HEART_COLORS = ["#d22", "#ff69b4", "#3cb371", "#1e90ff", "#ffa500", "#9370db", "#ffd700", "#323b43"];

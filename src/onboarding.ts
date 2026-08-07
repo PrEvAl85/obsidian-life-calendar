@@ -1,5 +1,6 @@
 import { App, Modal, Notice, Setting, TFile } from "obsidian";
 import { LifeCalendarSettings } from "./types";
+import { t } from "./i18n";
 
 /**
  * Создание структуры плагина при первом включении:
@@ -52,14 +53,11 @@ export class BirthDateModal extends Modal {
     const { contentEl } = this;
     contentEl.addClass("lc-onboarding");
     contentEl.createEl("h3", { text: "Life Calendar" });
-    contentEl.createEl("p", {
-      text: "Добро пожаловать! Для построения календаря жизни введите вашу дату рождения. " +
-        "Плагин создаст папки для дневника, событий и экспорта.",
-    });
+    contentEl.createEl("p", { text: t("welcome") });
 
     new Setting(contentEl)
-      .setName("Дата рождения")
-      .setDesc("Обязательное поле")
+      .setName(t("date"))
+      .setDesc(t("requiredField"))
       .addText((text) => {
         text.inputEl.type = "date";
         text.inputEl.value = "1990-01-01";
@@ -72,16 +70,16 @@ export class BirthDateModal extends Modal {
     const btnRow = contentEl.createDiv({ cls: "lc-onboarding-actions" });
     const saveBtn = btnRow.createEl("button", {
       cls: "mod-cta",
-      text: "Начать",
+      text: t("start"),
     });
     saveBtn.addEventListener("click", async () => {
       const v = this.birthDate;
       if (!v) {
-        new Notice("Укажите дату рождения");
+        new Notice(t("birthDateRequired"));
         return;
       }
       if (!/^\d{4}-\d{2}-\d{2}$/.test(v)) {
-        new Notice("Неверный формат даты (нужен ГГГГ-ММ-ДД)");
+        new Notice(t("invalidDateFormat"));
         return;
       }
       this.settings.birthDate = v;

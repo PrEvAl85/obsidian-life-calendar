@@ -1,13 +1,14 @@
 import { App, TFile } from "obsidian";
 import { JournalEntry, LifeCalendarSettings } from "./types";
 import { keyToDmy, weekdayName, dmyToKey, pad } from "./util";
+import { t } from "./i18n";
 
 interface Section {
   date: string;
   lines: string[];
 }
 
-const WEEK_HEAD_RE = /^#\s+\d{1,2}\.\d{1,2}\.\d{4}\s+—\s+неделя/m;
+const WEEK_HEAD_RE = /^#\s+\d{1,2}\.\d{1,2}\.\d{4}\s+—\s+(неделя|week)/m;
 const SECTION_RE = /^###\s+(\d{1,2})\.(\d{1,2})\.(\d{4})/;
 
 export class WeekStore {
@@ -29,7 +30,7 @@ export class WeekStore {
   }
 
   buildWeek(weekKey: string, entries: JournalEntry[]): string {
-    const lines: string[] = [`# ${keyToDmy(weekKey)} — неделя`, ""];
+    const lines: string[] = [t("weekNoteHead", { key: keyToDmy(weekKey) }), ""];
     const sources = new Set<string>();
     const byDate = new Map<string, JournalEntry[]>();
     for (const j of entries) {
@@ -39,7 +40,7 @@ export class WeekStore {
     }
     const dates = [...byDate.keys()].sort();
     if (dates.length) {
-      lines.push("## Журнал", "");
+      lines.push("## " + t("weekJournal"), "");
       for (const date of dates) {
         lines.push(`### ${keyToDmy(date)} (${weekdayName(date)})`, "");
         const list = byDate.get(date)!;
@@ -49,7 +50,7 @@ export class WeekStore {
         }
       }
     }
-    lines.push("## Источник", "");
+    lines.push("## " + t("weekSource"), "");
     for (const s of [...sources].sort()) lines.push("- " + s);
     return lines.join("\n") + "\n";
   }
@@ -120,6 +121,6 @@ export class WeekStore {
     const blocks = extra
       .map((s) => `### ${keyToDmy(s.date)} (${weekdayName(s.date)})\n\n${s.lines.join("\n").trim()}`)
       .join("\n\n");
-    return rebuilt.replace(/\n## Источник/, "\n" + blocks + "\n\n## Источник");
+    return rebuilt.replace(/\n## [^\n]*/, "\n" + blocks + "\n\n## " + t("weekSource"));
   }
 }

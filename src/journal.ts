@@ -1,6 +1,7 @@
 import { App, TFile } from "obsidian";
 import { JournalEntry, LifeCalendarSettings } from "./types";
 import { cleanNoteText, keyToDmy, pad } from "./util";
+import { monthNameGen } from "./i18n";
 
 const FILE_RE = /^(\d{1,2})\.(\d{1,2})\.(\d{4})\.md$/;
 
@@ -81,7 +82,7 @@ export class JournalStore {
     const y = +p[0];
     const m = +p[1];
     const d = +p[2];
-    const header = "# " + d + " " + this.ruMonthGen(m) + " " + y;
+    const header = "# " + d + " " + monthNameGen(m - 1) + " " + y;
     await this.app.vault.create(path, header + "\n\n" + text.trim() + "\n");
     return path;
   }
@@ -148,14 +149,6 @@ export class JournalStore {
     blocks[target] = tmp;
     await this.app.vault.modify(file, rebuildDay(header, blocks));
     return true;
-  }
-
-  private ruMonthGen(m: number): string {
-    const names = [
-      "января", "февраля", "марта", "апреля", "мая", "июня",
-      "июля", "августа", "сентября", "октября", "ноября", "декабря",
-    ];
-    return names[m - 1] || String(m);
   }
 
   private weekOf(dateKey: string): string {

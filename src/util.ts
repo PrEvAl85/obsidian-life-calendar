@@ -1,4 +1,5 @@
 import { moment } from "obsidian";
+import { dayName, monthNameGen } from "./i18n";
 
 export function pad(n: number): string {
   return (n < 10 ? "0" : "") + n;
@@ -34,16 +35,11 @@ export function keyToDmy(key: string): string {
 export const RU_WEEKDAYS = ["воскресенье", "понедельник", "вторник", "среда", "четверг", "пятница", "суббота"];
 
 export function weekdayName(dateKey: string): string {
-  return RU_WEEKDAYS[moment(dateKey, "YYYY-MM-DD").day()];
+  return dayName(moment(dateKey, "YYYY-MM-DD").day());
 }
 
-export const RU_MONTHS_GEN = [
-  "января", "февраля", "марта", "апреля", "мая", "июня",
-  "июля", "августа", "сентября", "октября", "ноября", "декабря",
-];
-
 export function formatRuDate(y: number, m: number, d: number): string {
-  return +d + " " + RU_MONTHS_GEN[m - 1] + " " + y;
+  return +d + " " + monthNameGen(m - 1) + " " + y;
 }
 
 export function escRe(s: string): string {
@@ -56,7 +52,7 @@ export function cleanNoteText(content: string): string {
   const fm = /^---\s*\n.*?\n---\s*\n?/s.exec(text);
   if (fm) text = text.slice(fm[0].length);
   text = text.replace(/^#\s+[^\n]*\n+/m, "");
-  text = text.replace(/(^|\n)##\s+Источник[^\n]*(?:\n[ \t]*-[^\n]*)*\n*/g, "");
+  text = text.replace(/(^|\n)##\s+(Источник|Source)[^\n]*(?:\n[ \t]*-[^\n]*)*\n*/g, "");
   text = text.replace(/^[ \t]*---\s*$/gm, "\n");
   text = text.replace(/!\[\[[^\]]+\]\]/g, "");
   text = text.replace(/\[\[([^\]|]+)\|([^\]]+)\]\]/g, "$2");

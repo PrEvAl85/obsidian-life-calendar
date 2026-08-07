@@ -3,6 +3,7 @@ import LifeCalendarPlugin from "./main";
 import { HEART_COLORS, RING_COLORS, JournalEntry, LifeEvent, WeekStyle } from "./types";
 import { keyToDmy, dmyToKey, weekdayName, weekKeyOf } from "./util";
 import { AddEntryModal, EventsModal, WeekModal } from "./modals";
+import { t } from "./i18n";
 
 export const VIEW_TYPE_LIFE_CALENDAR = "life-calendar-view";
 
@@ -46,7 +47,7 @@ export class LifeCalendarView extends ItemView {
     if (!/^\d{4}-\d{2}-\d{2}$/.test(s.birthDate)) {
       container.createEl("div", {
         cls: "lc-no-birthdate",
-        text: "Укажите дату рождения в настройках плагина.",
+        text: t("noBirthDate"),
       });
       return;
     }
@@ -60,7 +61,7 @@ export class LifeCalendarView extends ItemView {
     const today = moment().startOf("day");
     const start = moment(s.birthDate, "YYYY-MM-DD").startOf("day");
     if (!start.isValid()) {
-      container.createEl("div", { cls: "lc-no-birthdate", text: "Неверная дата рождения." });
+      container.createEl("div", { cls: "lc-no-birthdate", text: t("invalidBirthDate") });
       return;
     }
 
@@ -92,17 +93,21 @@ export class LifeCalendarView extends ItemView {
 
     // --- HTML
     const tool = container.createDiv({ cls: "life-cal-toolbar" });
-    const addBtn = tool.createEl("button", { cls: "add-btn", text: "➕ Запись в дневник" });
+    const addBtn = tool.createEl("button", { cls: "add-btn", text: t("addEntryBtn") });
     addBtn.type = "button";
-    const evBtn = tool.createEl("button", { cls: "add-btn", text: "События" });
+    const evBtn = tool.createEl("button", { cls: "add-btn", text: t("eventsBtn") });
     evBtn.type = "button";
-    const expBtn = tool.createEl("button", { cls: "add-btn", text: "📤 Экспорт для Android" });
+    const expBtn = tool.createEl("button", { cls: "add-btn", text: t("exportBtn") });
     expBtn.type = "button";
 
     const legend = container.createDiv({ cls: "legend" });
-    legend.textContent =
-      `Дата рождения: ${start.format("DD.MM.YYYY")}   Сегодня: ${today.format("DD.MM.YYYY")}   ` +
-      `Возраст: ${yearsLived} лет и ${weeksSinceLastBirthday} нед.   Записей в неделях: ${srcCache.size}`;
+    legend.textContent = t("legend", {
+      birth: start.format("DD.MM.YYYY"),
+      today: today.format("DD.MM.YYYY"),
+      age: yearsLived,
+      weeks: weeksSinceLastBirthday,
+      weeksWith: srcCache.size,
+    });
 
     const grid = container.createDiv({ cls: "life-cal-wrap" }).createDiv({ cls: "life-cal" });
     const startYear = start.year();
@@ -145,7 +150,7 @@ export class LifeCalendarView extends ItemView {
         if (isBirthdayWeek) {
           cls = "heart birthday";
           ch = filledChar;
-          tooltip += " — День рождения 🎂";
+          tooltip += t("birthdaySuffix");
         }
 
         if (!isBirthdayWeek) {
@@ -182,7 +187,7 @@ export class LifeCalendarView extends ItemView {
             .slice(0, 7)
             .map((e) => `${keyToDmy(e.date)} (${weekdayName(e.date)}): ${e.text.replace(/\s+/g, " ").slice(0, 150)}`);
           tooltip += "\n📝 " + tips.join("\n");
-          if (src.entries.length > 7) tooltip += `\n… ещё ${src.entries.length - 7}`;
+          if (src.entries.length > 7) tooltip += t("moreEntries", { n: src.entries.length - 7 });
         }
 
         let weekStyle = colorStyle;
@@ -264,13 +269,13 @@ export class LifeCalendarView extends ItemView {
           sw.style.color = c;
           sw.textContent = "♥";
           sw.setAttribute("data-c", c);
-          sw.title = "Цвет сердечка";
+          sw.title = t("colorTip");
           if (st.color === c) sw.classList.add("sel");
         }
         const creset = colorsRow.createEl("button", { cls: "lc-creset" });
         creset.type = "button";
         creset.textContent = "✕";
-        creset.title = "Сбросить цвет";
+        creset.title = t("resetColor");
         const main = tip.createDiv({ cls: "lc-tip-main" });
         const textDiv = main.createDiv({ cls: "lc-tip-text" });
         textDiv.textContent = text;
@@ -279,13 +284,13 @@ export class LifeCalendarView extends ItemView {
           const ring = rings.createDiv({ cls: "lc-ring" });
           ring.style.setProperty("--ring-color", r);
           ring.setAttribute("data-r", r);
-          ring.title = "Кольцо";
+          ring.title = t("ringTip");
           if (st.ring === r) ring.classList.add("sel");
         }
         const rreset = rings.createEl("button", { cls: "lc-rreset" });
         rreset.type = "button";
         rreset.textContent = "✕";
-        rreset.title = "Сбросить кольцо";
+        rreset.title = t("resetRing");
       }
       tip.style.display = "block";
       const hr = el.getBoundingClientRect();
@@ -377,7 +382,7 @@ export class LifeCalendarView extends ItemView {
     addBtn.addEventListener("click", () => {
       new AddEntryModal(this.app, today, async (date, text) => {
         const path = await this.plugin.journal.addEntry(date, text);
-        new Notice("Запись добавлена: " + path);
+        new Notice(t("entryAdded", { path }));
         await this.render();
       }).open();
     });
@@ -396,14 +401,10 @@ export class LifeCalendarView extends ItemView {
         const events = await this.plugin.events.read();
         const json = this.plugin.export.buildJson(entries, events);
         const path = await this.plugin.export.writeBackup(json);
-        new Notice(
-          `Экспорт готов: ${path}\nЗаписей: ${entries.length}, событий: ${events.length}. ` +
-            "Импортируйте файл в приложение Life Calendar (Android).",
-          6000,
-        );
+        new Notice(t("exportDone", { path, entries: entries.length, events: events.length }), 6000);
       } catch (err) {
         console.error("Life Calendar: export", err);
-        new Notice("Life Calendar: ошибка экспорта: " + (err && err.message ? err.message : err));
+        new Notice(t("exportError", { error: err && err.message ? err.message : err }));
       }
     });
 
@@ -461,7 +462,7 @@ export class LifeCalendarView extends ItemView {
             if (file) {
               await this.app.workspace.getLeaf(false).openFile(file);
             } else {
-              new Notice("В этой неделе нет записей");
+              new Notice(t("weekNoEntries"));
             }
           },
         },

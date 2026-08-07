@@ -1,6 +1,7 @@
 import { App, Modal, Notice, moment } from "obsidian";
 import { HEART_COLORS, JournalEntry, LifeEvent } from "./types";
 import { keyToDmy, weekdayName } from "./util";
+import { t } from "./i18n";
 
 /** Модалка добавления записи в дневник. */
 export class AddEntryModal extends Modal {
@@ -20,10 +21,10 @@ export class AddEntryModal extends Modal {
   onOpen(): void {
     const { contentEl } = this;
     contentEl.addClass("lc-modal");
-    contentEl.createEl("h3", { text: "Запись в дневник" });
+    contentEl.createEl("h3", { text: t("addEntryTitle") });
 
     const dateWrap = contentEl.createDiv({ cls: "lc-modal-field" });
-    dateWrap.createEl("label", { text: "Дата" });
+    dateWrap.createEl("label", { text: t("date") });
     const dateInput = dateWrap.createEl("input", { type: "date" });
     dateInput.value = this.dateValue;
     dateInput.addEventListener("change", () => {
@@ -31,20 +32,20 @@ export class AddEntryModal extends Modal {
     });
 
     const textWrap = contentEl.createDiv({ cls: "lc-modal-field" });
-    textWrap.createEl("label", { text: "Текст" });
+    textWrap.createEl("label", { text: t("text") });
     const ta = textWrap.createEl("textarea", {
       cls: "lc-modal-textarea",
-      attr: { rows: "6", placeholder: "Текст записи…" },
+      attr: { rows: "6", placeholder: t("entryTextPlaceholder") },
     });
 
     const row = contentEl.createDiv({ cls: "lc-modal-row" });
-    row.createEl("button", { cls: "lc-modal-cancel", text: "Отмена" }).addEventListener("click", () => this.close());
-    const save = row.createEl("button", { cls: "mod-cta", text: "Сохранить" });
+    row.createEl("button", { cls: "lc-modal-cancel", text: t("cancel") }).addEventListener("click", () => this.close());
+    const save = row.createEl("button", { cls: "mod-cta", text: t("save") });
 
     const doSave = async () => {
       const text = ta.value.trim();
       if (!text) {
-        new Notice("Введите текст записи");
+        new Notice(t("enterEntryText"));
         return;
       }
       try {
@@ -52,7 +53,7 @@ export class AddEntryModal extends Modal {
         this.close();
       } catch (err) {
         console.error("Life Calendar: add entry", err);
-        new Notice("Life Calendar: " + (err && err.message ? err.message : err));
+        new Notice(t("genericError", { error: err && err.message ? err.message : err }));
       }
     };
     save.addEventListener("click", doSave);
@@ -91,7 +92,7 @@ export class EventsModal extends Modal {
     const { contentEl } = this;
     contentEl.empty();
     contentEl.addClass("lc-modal");
-    contentEl.createEl("h3", { text: "События" });
+    contentEl.createEl("h3", { text: t("eventsTitle") });
 
     const list = contentEl.createDiv({ cls: "lc-events-list" });
     for (const ev of this.events) {
@@ -101,7 +102,7 @@ export class EventsModal extends Modal {
       item.createSpan({ cls: "lc-event-date", text: keyToDmy(ev.date) + " (" + weekdayName(ev.date) + ")" });
       item.createSpan({ cls: "lc-event-title", text: ev.title });
       const del = item.createEl("button", { cls: "lc-event-del", text: "🗑" });
-      del.title = "Удалить";
+      del.title = t("delete");
       del.addEventListener("click", async () => {
         this.events = this.events.filter((x) => !(x.date === ev.date && x.title === ev.title));
         await this.save(this.events);
@@ -123,11 +124,11 @@ export class EventsModal extends Modal {
       });
     }
     if (!this.events.length) {
-      list.createDiv({ cls: "lc-events-empty", text: "Событий пока нет" });
+      list.createDiv({ cls: "lc-events-empty", text: t("noEvents") });
     }
 
     const row = contentEl.createDiv({ cls: "lc-modal-row" });
-    row.createEl("button", { cls: "mod-cta", text: "➕ Добавить" }).addEventListener("click", async () => {
+    row.createEl("button", { cls: "mod-cta", text: t("addBtn") }).addEventListener("click", async () => {
       const addModal = new EventEditModal(this.app, null);
       addModal.open();
       const added = await addModal.awaitResult();
@@ -138,7 +139,7 @@ export class EventsModal extends Modal {
         this.render();
       }
     });
-    row.createEl("button", { cls: "lc-modal-cancel", text: "Закрыть" }).addEventListener("click", () => this.close());
+    row.createEl("button", { cls: "lc-modal-cancel", text: t("close") }).addEventListener("click", () => this.close());
   }
 
   onClose(): void {
@@ -174,23 +175,23 @@ class EventEditModal extends Modal {
   onOpen(): void {
     const { contentEl } = this;
     contentEl.addClass("lc-modal");
-    contentEl.createEl("h3", { text: this.initial ? "Редактировать событие" : "Новое событие" });
+    contentEl.createEl("h3", { text: this.initial ? t("editEventTitle") : t("newEventTitle") });
 
     const dateWrap = contentEl.createDiv({ cls: "lc-modal-field" });
-    dateWrap.createEl("label", { text: "Дата" });
+    dateWrap.createEl("label", { text: t("date") });
     const dateInput = dateWrap.createEl("input", { type: "date" });
     dateInput.value = this.initial ? this.initial.date : window.moment().format("YYYY-MM-DD");
 
     const titleWrap = contentEl.createDiv({ cls: "lc-modal-field" });
-    titleWrap.createEl("label", { text: "Название" });
+    titleWrap.createEl("label", { text: t("title") });
     const titleInput = titleWrap.createEl("input", {
       cls: "lc-modal-text",
-      attr: { placeholder: "Название события…" },
+      attr: { placeholder: t("eventTitlePlaceholder") },
     });
     titleInput.value = this.initial ? this.initial.title : "";
 
     const colorWrap = contentEl.createDiv({ cls: "lc-modal-field" });
-    colorWrap.createEl("label", { text: "Цвет" });
+    colorWrap.createEl("label", { text: t("color") });
     const colors = colorWrap.createDiv({ cls: "lc-event-colors" });
     let color = this.initial ? this.initial.color : HEART_COLORS[0];
     for (const c of HEART_COLORS) {
@@ -206,19 +207,19 @@ class EventEditModal extends Modal {
     }
 
     const row = contentEl.createDiv({ cls: "lc-modal-row" });
-    row.createEl("button", { cls: "lc-modal-cancel", text: "Отмена" }).addEventListener("click", () => {
+    row.createEl("button", { cls: "lc-modal-cancel", text: t("cancel") }).addEventListener("click", () => {
       this.finish(null);
     });
-    const save = row.createEl("button", { cls: "mod-cta", text: "Сохранить" });
+    const save = row.createEl("button", { cls: "mod-cta", text: t("save") });
     save.addEventListener("click", () => {
       const title = titleInput.value.trim();
       const date = dateInput.value;
       if (!title) {
-        new Notice("Введите название события");
+        new Notice(t("enterEventTitle"));
         return;
       }
       if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) {
-        new Notice("Неверная дата");
+        new Notice(t("invalidDate"));
         return;
       }
       this.finish({ date, color, title });
@@ -283,14 +284,17 @@ export class WeekModal extends Modal {
     const wkStart = moment(this.weekKey, "YYYY-MM-DD");
     const wkEnd = wkStart.clone().add(6, "days");
     contentEl.createEl("h3", {
-      text: `Неделя ${wkStart.format("DD.MM.YYYY")} — ${wkEnd.format("DD.MM.YYYY")}`,
+      text: t("weekTitle", {
+        start: wkStart.format("DD.MM.YYYY"),
+        end: wkEnd.format("DD.MM.YYYY"),
+      }),
     });
 
     // --- Записи дневника
     const entriesBlock = contentEl.createDiv({ cls: "lc-week-block" });
     const eHead = entriesBlock.createDiv({ cls: "lc-week-block-head" });
-    eHead.createSpan({ cls: "lc-week-block-title", text: "📝 Записи дневника" });
-    eHead.createEl("button", { cls: "mod-cta lc-week-add", text: "➕ Запись" }).addEventListener("click", async () => {
+    eHead.createSpan({ cls: "lc-week-block-title", text: t("weekEntriesSection") });
+    eHead.createEl("button", { cls: "mod-cta lc-week-add", text: t("addEntry") }).addEventListener("click", async () => {
       new AddEntryModal(this.app, wkStart.format("YYYY-MM-DD"), async (date, text) => {
         await this.handlers.addEntry(date, text);
         await this.reload();
@@ -307,7 +311,7 @@ export class WeekModal extends Modal {
       const btns = head.createDiv({ cls: "lc-week-item-btns" });
       if (e.index > 0) {
         const up = btns.createEl("button", { cls: "lc-week-btn", text: "▲" });
-        up.title = "Выше";
+        up.title = t("up");
         up.addEventListener("click", async () => {
           await this.handlers.moveEntry(e.date, e.index, -1);
           await this.reload();
@@ -315,14 +319,14 @@ export class WeekModal extends Modal {
       }
       if (e.index < e.blocks - 1) {
         const down = btns.createEl("button", { cls: "lc-week-btn", text: "▼" });
-        down.title = "Ниже";
+        down.title = t("down");
         down.addEventListener("click", async () => {
           await this.handlers.moveEntry(e.date, e.index, 1);
           await this.reload();
         });
       }
       const editBtn = btns.createEl("button", { cls: "lc-week-btn", text: "✏️" });
-      editBtn.title = "Редактировать";
+      editBtn.title = t("edit");
       editBtn.addEventListener("click", async () => {
         const m = new EntryEditModal(this.app, { date: e.date, text: e.text });
         m.open();
@@ -333,20 +337,20 @@ export class WeekModal extends Modal {
         }
       });
       const delBtn = btns.createEl("button", { cls: "lc-week-btn", text: "🗑" });
-      delBtn.title = "Удалить";
+      delBtn.title = t("delete");
       delBtn.addEventListener("click", async () => {
         await this.handlers.deleteEntry(e.date, e.index);
         await this.reload();
       });
       item.createDiv({ cls: "lc-week-item-text", text: e.text });
     }
-    if (!this.entries.length) eList.createDiv({ cls: "lc-week-empty", text: "Записей нет" });
+    if (!this.entries.length) eList.createDiv({ cls: "lc-week-empty", text: t("noEntries") });
 
     // --- События
     const eventsBlock = contentEl.createDiv({ cls: "lc-week-block" });
     const sHead = eventsBlock.createDiv({ cls: "lc-week-block-head" });
-    sHead.createSpan({ cls: "lc-week-block-title", text: "📅 События" });
-    sHead.createEl("button", { cls: "mod-cta lc-week-add", text: "➕ Событие" }).addEventListener("click", async () => {
+    sHead.createSpan({ cls: "lc-week-block-title", text: t("weekEventsSection") });
+    sHead.createEl("button", { cls: "mod-cta lc-week-add", text: t("addEvent") }).addEventListener("click", async () => {
       const m = new EventEditModal(this.app, { date: wkStart.format("YYYY-MM-DD"), color: HEART_COLORS[0], title: "" });
       m.open();
       const res = await m.awaitResult();
@@ -365,7 +369,7 @@ export class WeekModal extends Modal {
       head.createSpan({ cls: "lc-week-item-title", text: ev.title });
       const btns = head.createDiv({ cls: "lc-week-item-btns" });
       const editBtn = btns.createEl("button", { cls: "lc-week-btn", text: "✏️" });
-      editBtn.title = "Редактировать";
+      editBtn.title = t("edit");
       editBtn.addEventListener("click", async () => {
         const m = new EventEditModal(this.app, ev);
         m.open();
@@ -376,32 +380,32 @@ export class WeekModal extends Modal {
         }
       });
       const delBtn = btns.createEl("button", { cls: "lc-week-btn", text: "🗑" });
-      delBtn.title = "Удалить";
+      delBtn.title = t("delete");
       delBtn.addEventListener("click", async () => {
         await this.handlers.deleteEvent(ev);
         await this.reload();
       });
     }
-    if (!this.events.length) sList.createDiv({ cls: "lc-week-empty", text: "Событий нет" });
+    if (!this.events.length) sList.createDiv({ cls: "lc-week-empty", text: t("noEventsWeek") });
 
     const row = contentEl.createDiv({ cls: "lc-modal-row lc-modal-row-between" });
     const left = row.createDiv({ cls: "lc-modal-row-left" });
-    const dayBtn = left.createEl("button", { cls: "lc-modal-cancel", text: "📂 Открыть заметки по датам" });
+    const dayBtn = left.createEl("button", { cls: "lc-modal-cancel", text: t("openDayNotes") });
     dayBtn.type = "button";
     dayBtn.addEventListener("click", async () => {
       const paths = [...new Set(this.entries.map((e) => e.path))];
       if (!paths.length) {
-        new Notice("В этой неделе нет записей");
+        new Notice(t("weekNoEntries"));
         return;
       }
       await this.handlers.openDayNotes(paths);
     });
-    const weekBtn = left.createEl("button", { cls: "lc-modal-cancel", text: "📄 Открыть недельную заметку" });
+    const weekBtn = left.createEl("button", { cls: "lc-modal-cancel", text: t("openWeekNote") });
     weekBtn.type = "button";
     weekBtn.addEventListener("click", async () => {
       await this.handlers.openWeekNote(this.entries);
     });
-    row.createEl("button", { cls: "lc-modal-cancel", text: "Закрыть" }).addEventListener("click", () => this.close());
+    row.createEl("button", { cls: "lc-modal-cancel", text: t("close") }).addEventListener("click", () => this.close());
   }
 
   onClose(): void {
@@ -437,34 +441,34 @@ export class EntryEditModal extends Modal {
   onOpen(): void {
     const { contentEl } = this;
     contentEl.addClass("lc-modal");
-    contentEl.createEl("h3", { text: "Редактировать запись" });
+    contentEl.createEl("h3", { text: t("editEntryTitle") });
 
     const dateWrap = contentEl.createDiv({ cls: "lc-modal-field" });
-    dateWrap.createEl("label", { text: "Дата" });
+    dateWrap.createEl("label", { text: t("date") });
     const dateInput = dateWrap.createEl("input", { type: "date" });
     dateInput.value = this.initial.date;
 
     const textWrap = contentEl.createDiv({ cls: "lc-modal-field" });
-    textWrap.createEl("label", { text: "Текст" });
+    textWrap.createEl("label", { text: t("text") });
     const ta = textWrap.createEl("textarea", {
       cls: "lc-modal-textarea",
-      attr: { rows: "6", placeholder: "Текст записи…" },
+      attr: { rows: "6", placeholder: t("entryTextPlaceholder") },
     });
     ta.value = this.initial.text;
 
     const row = contentEl.createDiv({ cls: "lc-modal-row" });
-    row.createEl("button", { cls: "lc-modal-cancel", text: "Отмена" }).addEventListener("click", () => this.finish(null));
-    const save = row.createEl("button", { cls: "mod-cta", text: "Сохранить" });
+    row.createEl("button", { cls: "lc-modal-cancel", text: t("cancel") }).addEventListener("click", () => this.finish(null));
+    const save = row.createEl("button", { cls: "mod-cta", text: t("save") });
 
     const doSave = () => {
       const text = ta.value.trim();
       const date = dateInput.value;
       if (!text) {
-        new Notice("Введите текст записи");
+        new Notice(t("enterEntryText"));
         return;
       }
       if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) {
-        new Notice("Неверная дата");
+        new Notice(t("invalidDate"));
         return;
       }
       this.finish({ date, text });
