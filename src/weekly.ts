@@ -1,6 +1,6 @@
 import { App, TFile } from "obsidian";
 import { JournalEntry, LifeCalendarSettings } from "./types";
-import { keyToDmy, weekdayName, pad } from "./util";
+import { ensureFolder, keyToDmy, weekdayName, pad } from "./util";
 import { t } from "./i18n";
 
 interface Section {
@@ -99,6 +99,7 @@ export class WeekStore {
     }
     if (!entries.length) return null;
     const content = this.buildWeek(weekKey, entries);
+    await ensureFolder(this.app, path);
     return this.app.vault.create(path, content);
   }
 

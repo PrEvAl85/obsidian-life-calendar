@@ -1,6 +1,6 @@
 import { App, TFile } from "obsidian";
 import { JournalEntry, LifeCalendarSettings } from "./types";
-import { cleanNoteText, keyToDmy, pad } from "./util";
+import { cleanNoteText, ensureFolder, keyToDmy, pad } from "./util";
 import { monthNameGen } from "./i18n";
 import { mondayKeyOf } from "./date";
 
@@ -84,6 +84,7 @@ export class JournalStore {
     const m = +p[1];
     const d = +p[2];
     const header = "# " + d + " " + monthNameGen(m - 1) + " " + y;
+    await ensureFolder(this.app, path);
     await this.app.vault.create(path, header + "\n\n" + text.trim() + "\n");
     return path;
   }

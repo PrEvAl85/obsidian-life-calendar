@@ -1,8 +1,23 @@
+import { App } from "obsidian";
 import { dayName, monthNameGen } from "./i18n";
 import { dayIndexOfKey, mondayKeyOf as mondayOfKey } from "./date";
 
 export function pad(n: number): string {
   return (n < 10 ? "0" : "") + n;
+}
+
+/** Гарантирует существование родительской папки файла (создаёт вложенные). */
+export async function ensureFolder(app: App, filePath: string): Promise<void> {
+  const dir = filePath.replace(/[^/]+$/, "").replace(/\/$/, "");
+  if (!dir) return;
+  const folder = app.vault.getAbstractFileByPath(dir);
+  if (!folder) {
+    try {
+      await app.vault.createFolder(dir);
+    } catch {
+      // Папка могла создаться параллельно
+    }
+  }
 }
 
 export function fmtKey(y: number, m: number, d: number): string {

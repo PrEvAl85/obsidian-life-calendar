@@ -27,6 +27,9 @@ export default class LifeCalendarPlugin extends Plugin {
     this.events = new EventsStore(this.app, () => this.settings);
     this.export = new ExportManager(this.app, () => this.settings);
 
+    // Структура папок/файлов — идемпотентно при каждой загрузке (даже если папки удалили)
+    void setupStructure(this.app, this.settings);
+
     this.registerView(VIEW_TYPE_LIFE_CALENDAR, (leaf) => new LifeCalendarView(leaf, this));
 
     this.addRibbonIcon("heart", t("ribbon"), () => this.openLifeCalendar());
