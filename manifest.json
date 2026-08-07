@@ -1,9 +1,9 @@
 {
   "id": "obsidian-life-calendar",
   "name": "Life Calendar",
-  "version": "1.0.0",
+  "version": "1.2.0",
   "minAppVersion": "1.4.0",
-  "description": "Жизнь в неделях: сетка сердечек 52×N, дневник, события и экспорт для приложения Life Calendar (Android).",
+  "description": "A life-in-weeks grid of heart-shaped cells based on the \"Life in Weeks\" idea by WaitButWhy. Built-in journal, events, and one-click export for the Life Calendar Android app.",
   "author": "PrEvAl85",
   "authorUrl": "https://github.com/PrEvAl85",
   "isDesktopOnly": false
