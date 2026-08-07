@@ -109,7 +109,9 @@ export class EventsModal extends Modal {
       });
       item.addEventListener("click", async (e) => {
         if (e.target === del) return;
-        const edited = await new EventEditModal(this.app, ev).awaitResult();
+        const editModal = new EventEditModal(this.app, ev);
+        editModal.open();
+        const edited = await editModal.awaitResult();
         if (edited) {
           this.events = this.events.map((x) =>
             x.date === ev.date && x.title === ev.title ? edited : x,
@@ -126,7 +128,9 @@ export class EventsModal extends Modal {
 
     const row = contentEl.createDiv({ cls: "lc-modal-row" });
     row.createEl("button", { cls: "mod-cta", text: "➕ Добавить" }).addEventListener("click", async () => {
-      const added = await new EventEditModal(this.app, null).awaitResult();
+      const addModal = new EventEditModal(this.app, null);
+      addModal.open();
+      const added = await addModal.awaitResult();
       if (added) {
         this.events.push(added);
         this.events.sort((a, b) => a.date.localeCompare(b.date) || a.title.localeCompare(b.title));
