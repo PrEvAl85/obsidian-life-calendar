@@ -1,0 +1,17 @@
+# Dependencies
+node_modules/
+
+# Build output
+main.js
+*.map
+
+# Release archives
+*.zip
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Keys and local secrets
+keys/
+*.keystore

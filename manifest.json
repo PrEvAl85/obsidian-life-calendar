@@ -1,0 +1,10 @@
+{
+  "id": "obsidian-life-calendar",
+  "name": "Life Calendar",
+  "version": "1.0.0",
+  "minAppVersion": "1.4.0",
+  "description": "Жизнь в неделях: сетка сердечек 52×N, дневник, события и экспорт для приложения Life Calendar (Android).",
+  "author": "PrEvAl85",
+  "authorUrl": "https://github.com/PrEvAl85",
+  "isDesktopOnly": false
+}

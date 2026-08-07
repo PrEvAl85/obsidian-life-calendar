@@ -1,0 +1,25 @@
+{
+  "name": "obsidian-life-calendar",
+  "version": "1.0.0",
+  "description": "Life Calendar for Obsidian — a life in weeks grid with journal entries, events and export for the Life Calendar Android app.",
+  "main": "main.js",
+  "scripts": {
+    "dev": "node esbuild.config.mjs",
+    "build": "tsc -noEmit -skipLibCheck && node esbuild.config.mjs production"
+  },
+  "keywords": [
+    "obsidian",
+    "life-calendar",
+    "life-in-weeks"
+  ],
+  "author": "PrEvAl85",
+  "license": "MIT",
+  "devDependencies": {
+    "@types/node": "^20.11.0",
+    "builtin-modules": "^3.3.0",
+    "esbuild": "^0.19.11",
+    "obsidian": "latest",
+    "tslib": "2.6.2",
+    "typescript": "5.3.3"
+  }
+}
