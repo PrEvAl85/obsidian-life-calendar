@@ -6,12 +6,18 @@ A life-in-weeks view for Obsidian: your whole life as a grid of heart-shaped cel
 
 ## Installation
 
-> Manual installation (the plugin is not yet published in the Obsidian community list).
+### From the Community plugins catalog
 
-1. Download the latest release or build from source (see below).
-2. Copy the folder with `main.js`, `manifest.json`, `styles.css` into your vault:
-   `<YourVault>/.obsidian/plugins/obsidian-life-calendar/`
-3. In Obsidian: **Settings → Community plugins → Reload plugins** (or restart Obsidian), then enable **Life Calendar**.
+1. In Obsidian: **Settings → Community plugins → Browse**.
+2. Search for **Life Calendar** and install it.
+3. Enable the plugin and turn off **Restricted mode** if prompted.
+
+> Manual installation (if the plugin is not yet visible in the catalog — e.g. while the submission is in review):
+>
+> 1. Download the latest release or build from source (see below).
+> 2. Copy the folder with `main.js`, `manifest.json`, `styles.css` into your vault:
+>    `<YourVault>/.obsidian/plugins/obsidian-life-calendar/`
+> 3. In Obsidian: **Settings → Community plugins → Reload plugins** (or restart Obsidian), then enable **Life Calendar**.
 
 ## First launch (onboarding)
 
@@ -43,6 +49,7 @@ All paths are configurable in the plugin settings.
 
 - Birth date
 - Lifespan (50–120 years)
+- Language: auto (Obsidian language) / Russian / English
 - Journal folder, weekly folder, events file, export file paths
 - Reset heart colors/rings
 
