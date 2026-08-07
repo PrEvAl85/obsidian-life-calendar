@@ -25,6 +25,7 @@ export class LifeCalendarSettingTab extends PluginSettingTab {
           if (!/^\d{4}-\d{2}-\d{2}$/.test(v)) return;
           this.plugin.settings.birthDate = v;
           await this.plugin.saveSettings();
+          this.plugin.refreshViews();
         });
       });
 
@@ -39,6 +40,7 @@ export class LifeCalendarSettingTab extends PluginSettingTab {
           .onChange(async (v) => {
             this.plugin.settings.lifespanYears = v;
             await this.plugin.saveSettings();
+            this.plugin.refreshViews();
           });
       });
 

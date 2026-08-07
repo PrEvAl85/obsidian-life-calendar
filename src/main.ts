@@ -63,6 +63,11 @@ export default class LifeCalendarPlugin extends Plugin {
 
     this.addSettingTab(new LifeCalendarSettingTab(this.app, this));
 
+    // Автообновление сетки при изменении дневника или событий
+    this.registerEvent(this.app.vault.on("modify", (file) => this.onVaultChange(file.path)));
+    this.registerEvent(this.app.vault.on("create", (file) => this.onVaultChange(file.path)));
+    this.registerEvent(this.app.vault.on("delete", (file) => this.onVaultChange(file.path)));
+
     if (!this.settings.birthDate) {
       window.setTimeout(() => {
         if (this.settings.birthDate) return;
@@ -106,6 +111,20 @@ export default class LifeCalendarPlugin extends Plugin {
         void view.render();
       }
     }
+  }
+
+  private refreshTimer: number | null = null;
+
+  private onVaultChange(path: string): void {
+    const journalPrefix = this.settings.journalFolder + "/";
+    const isRelevant =
+      path.startsWith(journalPrefix) && path.endsWith(".md") || path === this.settings.eventsFile;
+    if (!isRelevant) return;
+    if (this.refreshTimer !== null) window.clearTimeout(this.refreshTimer);
+    this.refreshTimer = window.setTimeout(() => {
+      this.refreshTimer = null;
+      this.refreshViews();
+    }, 300);
   }
 
   async exportForAndroid(): Promise<void> {
