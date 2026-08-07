@@ -1,0 +1,309 @@
+.life-cal {
+  font-family: monospace;
+  line-height: 1;
+}
+.life-cal-wrap {
+  position: relative;
+}
+.life-cal .row {
+  margin: 0 0 2px 0;
+  white-space: nowrap;
+  display: flex;
+  align-items: center;
+}
+.life-cal .age-label {
+  width: 3em;
+  text-align: right;
+  margin-right: 6px;
+  font-size: 12px;
+  color: #8aa6b6;
+}
+.life-cal .year-label {
+  margin-left: 8px;
+  font-size: 12px;
+  color: #5aaec3;
+  min-width: 4em;
+}
+.life-cal .heart {
+  display: inline-block;
+  width: 0.8em;
+  text-align: center;
+  font-size: 15px;
+  line-height: 1;
+  position: relative;
+  transition: transform 0.15s ease;
+  cursor: pointer;
+}
+.life-cal .heart:hover {
+  transform: scale(1.5);
+  z-index: 10;
+}
+.life-cal .filled {
+  color: #d22;
+}
+.life-cal .empty {
+  color: #bbb;
+}
+.life-cal .birthday {
+  color: #3cb371;
+}
+.life-cal .heart.has-note::after {
+  content: "";
+  position: absolute;
+  top: -2px;
+  right: 1px;
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background: #ffd500;
+  box-shadow: 0 0 2px rgba(0, 0, 0, 0.5);
+}
+.life-cal .heart::before {
+  content: attr(data-tip);
+  position: absolute;
+  bottom: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  margin-bottom: 4px;
+  background: var(--background-secondary);
+  color: var(--text-normal);
+  border: 1px solid var(--background-modifier-border);
+  border-radius: 4px;
+  padding: 3px 6px;
+  font-size: 11px;
+  line-height: 1.4;
+  white-space: pre-wrap;
+  width: max-content;
+  max-width: 280px;
+  text-align: left;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.12s ease;
+  z-index: 50;
+}
+.life-cal .heart:hover::before {
+  opacity: 1;
+  transform: translateX(-50%) scale(0.667);
+  transform-origin: bottom center;
+}
+.legend {
+  margin-bottom: 6px;
+  font-size: 12px;
+}
+.life-cal-toolbar {
+  margin-bottom: 6px;
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+.life-cal .add-btn,
+.life-cal-toolbar .add-btn {
+  font-family: inherit;
+  font-size: 12px;
+  background: var(--background-secondary-alt);
+  color: var(--text-normal);
+  border: 1px solid var(--background-modifier-border);
+  border-radius: 4px;
+  padding: 3px 10px;
+  cursor: pointer;
+}
+.life-cal .add-btn:hover,
+.life-cal-toolbar .add-btn:hover {
+  background: var(--background-modifier-hover);
+}
+.life-cal .heart.js-tip::before {
+  content: none;
+}
+.life-cal .heart.has-ring .h-glyph {
+  filter: drop-shadow(0 0 2px var(--lc-ring, #fff)) drop-shadow(0 0 2px var(--lc-ring, #fff))
+    drop-shadow(0 0 1px var(--lc-ring, #fff));
+}
+.lc-tip {
+  position: absolute;
+  z-index: 1000;
+  display: none;
+  max-width: 330px;
+  background: var(--background-primary);
+  color: var(--text-normal);
+  border: 1px solid var(--background-modifier-border);
+  border-radius: 8px;
+  box-shadow: var(--shadow-s);
+  padding: 8px;
+}
+.lc-tip-colors {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-bottom: 6px;
+}
+.lc-csw {
+  font-size: 14px;
+  line-height: 1;
+  cursor: pointer;
+  padding: 1px;
+  border-radius: 50%;
+}
+.lc-csw.sel {
+  outline: 2px solid var(--text-accent);
+}
+.lc-tip-main {
+  display: flex;
+  gap: 8px;
+}
+.lc-tip-text {
+  flex: 1;
+  font-size: 11px;
+  line-height: 1.4;
+  white-space: pre-wrap;
+  max-height: 160px;
+  overflow: auto;
+}
+.lc-tip-rings {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  padding-top: 2px;
+}
+.lc-ring {
+  width: 13px;
+  height: 13px;
+  border-radius: 50%;
+  border: 2px solid var(--ring-color, #ccc);
+  box-sizing: border-box;
+  cursor: pointer;
+}
+.lc-ring.sel {
+  outline: 2px solid var(--text-accent);
+}
+.lc-creset,
+.lc-rreset {
+  font-size: 10px;
+  line-height: 1;
+  padding: 1px 3px;
+  background: transparent;
+  color: var(--text-muted);
+  border: 1px solid var(--background-modifier-border);
+  border-radius: 3px;
+  cursor: pointer;
+}
+.lc-creset:hover,
+.lc-rreset:hover {
+  color: var(--text-normal);
+  background: var(--background-modifier-hover);
+}
+.lc-no-birthdate {
+  margin: 12px;
+  padding: 12px;
+  border: 1px solid var(--background-modifier-border);
+  border-radius: 8px;
+  color: var(--text-muted);
+}
+
+/* Модалки */
+.lc-modal h3 {
+  margin: 0 0 12px;
+}
+.lc-modal-field {
+  margin-bottom: 12px;
+}
+.lc-modal-field label {
+  display: block;
+  font-size: 12px;
+  color: var(--text-muted);
+  margin-bottom: 4px;
+}
+.lc-modal-field input[type="date"],
+.lc-modal-field input[type="text"],
+.lc-modal-field textarea {
+  width: 100%;
+  box-sizing: border-box;
+  background: var(--background-secondary);
+  color: var(--text-normal);
+  border: 1px solid var(--background-modifier-border);
+  border-radius: 4px;
+  padding: 4px 6px;
+  font-family: inherit;
+  font-size: 13px;
+}
+.lc-modal-textarea {
+  min-height: 120px;
+}
+.lc-modal-row {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+}
+.lc-modal-cancel {
+  font-family: inherit;
+  font-size: 13px;
+  background: var(--background-secondary-alt);
+  color: var(--text-normal);
+  border: 1px solid var(--background-modifier-border);
+  border-radius: 4px;
+  padding: 4px 12px;
+  cursor: pointer;
+}
+.lc-events-list {
+  margin-bottom: 12px;
+  max-height: 320px;
+  overflow: auto;
+}
+.lc-event-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 5px 6px;
+  border-radius: 4px;
+  cursor: pointer;
+}
+.lc-event-item:hover {
+  background: var(--background-modifier-hover);
+}
+.lc-event-dot {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+.lc-event-date {
+  font-size: 12px;
+  color: var(--text-muted);
+  flex-shrink: 0;
+}
+.lc-event-title {
+  flex: 1;
+  font-size: 13px;
+}
+.lc-event-del {
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  font-size: 13px;
+  padding: 0 4px;
+}
+.lc-events-empty {
+  color: var(--text-muted);
+  font-size: 13px;
+  padding: 8px 6px;
+}
+.lc-event-colors {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+.lc-event-color-swatch {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  cursor: pointer;
+}
+.lc-event-color-swatch.sel {
+  outline: 2px solid var(--text-accent);
+}
+
+.lc-onboarding-actions {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 16px;
+}
