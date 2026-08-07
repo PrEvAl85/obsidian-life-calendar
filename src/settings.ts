@@ -1,6 +1,7 @@
 import { App, Notice, PluginSettingTab, Setting } from "obsidian";
+import type { SettingDefinitionItem, SettingGroupItem } from "obsidian";
 import LifeCalendarPlugin from "./main";
-import { LIFESPAN_MAX, LIFESPAN_MIN } from "./types";
+import { DEFAULT_SETTINGS, LIFESPAN_MAX, LIFESPAN_MIN } from "./types";
 import { Dict, resolveLanguage, setLanguage, t } from "./i18n";
 
 const SUPPORT_LINKS = [
@@ -15,6 +16,8 @@ const CRYPTO_ADDRESSES: { key: keyof Dict; address: string }[] = [
   { key: "cryptoTON", address: "UQCzoPJlYLHSoFGmRyh_-_ox1nOMCzx3LwG79xPR5pbjs3Aq" },
 ];
 
+const PATH_KEYS = ["journalFolder", "weeklyFolder", "eventsFile", "exportFile"];
+
 export class LifeCalendarSettingTab extends PluginSettingTab {
   constructor(
     app: App,
@@ -23,144 +26,132 @@ export class LifeCalendarSettingTab extends PluginSettingTab {
     super(app, plugin);
   }
 
-  display(): void {
-    const { containerEl } = this;
-    containerEl.empty();
-    new Setting(containerEl).setName("Life Calendar").setHeading();
+  getSettingDefinitions(): SettingDefinitionItem[] {
+    const s = this.plugin.settings;
 
-    // --- Локализация
-    new Setting(containerEl).setName(t("settingsLanguage")).setHeading();
-    new Setting(containerEl)
-      .setName(t("settingsLanguage"))
-      .setDesc(t("settingsLanguageDesc"))
-      .addDropdown((dd) => {
-        dd.addOption("", t("langAuto"));
-        dd.addOption("ru", t("langRu"));
-        dd.addOption("en", t("langEn"));
-        dd.setValue(this.plugin.settings.language);
-        dd.onChange(async (v) => {
-          this.plugin.settings.language = v;
-          await this.plugin.saveSettings();
-          setLanguage(resolveLanguage(v));
-          this.display();
-          this.plugin.refreshViews();
-        });
-      });
-
-    // --- Основные
-    new Setting(containerEl)
-      .setName(t("settingsBirthDate"))
-      .setDesc(t("settingsBirthDateDesc"))
-      .addText((text) => {
-        text.inputEl.type = "date";
-        text.inputEl.value = this.plugin.settings.birthDate;
-        text.onChange(async (v) => {
-          if (!/^\d{4}-\d{2}-\d{2}$/.test(v)) return;
-          this.plugin.settings.birthDate = v;
-          await this.plugin.saveSettings();
-          this.plugin.refreshViews();
-        });
-      });
-
-    new Setting(containerEl)
-      .setName(t("settingsLifespan"))
-      .setDesc(t("settingsLifespanDesc", { min: LIFESPAN_MIN, max: LIFESPAN_MAX }))
-      .addSlider((slider) => {
-        slider
-          .setLimits(LIFESPAN_MIN, LIFESPAN_MAX, 1)
-          .setValue(this.plugin.settings.lifespanYears)
-          .onChange(async (v) => {
-            this.plugin.settings.lifespanYears = v;
-            await this.plugin.saveSettings();
-            this.plugin.refreshViews();
+    const main: SettingGroupItem[] = [
+      {
+        name: t("settingsLanguage"),
+        desc: t("settingsLanguageDesc"),
+        control: {
+          type: "dropdown",
+          key: "language",
+          options: { "": t("langAuto"), ru: t("langRu"), en: t("langEn") },
+        },
+      },
+      {
+        name: t("settingsBirthDate"),
+        desc: t("settingsBirthDateDesc"),
+        render: (setting: Setting) => {
+          setting.addText((text) => {
+            text.inputEl.type = "date";
+            text.inputEl.value = s.birthDate;
+            text.onChange(async (v) => {
+              if (!/^\d{4}-\d{2}-\d{2}$/.test(v)) return;
+              s.birthDate = v;
+              await this.plugin.saveSettings();
+              this.plugin.refreshViews();
+            });
           });
-      });
-
-    new Setting(containerEl)
-      .setName(t("settingsJournalFolder"))
-      .setDesc(t("settingsJournalFolderDesc"))
-      .addText((text) =>
-        text
-          .setPlaceholder("Life Calendar/Journal")
-          .setValue(this.plugin.settings.journalFolder)
-          .onChange(async (v) => {
-            this.plugin.settings.journalFolder = v.trim() || "Life Calendar/Journal";
-            await this.plugin.saveSettings();
-          }),
-      );
-
-    new Setting(containerEl)
-      .setName(t("settingsWeeklyFolder"))
-      .setDesc(t("settingsWeeklyFolderDesc"))
-      .addText((text) =>
-        text
-          .setPlaceholder("Life Calendar/Weekly")
-          .setValue(this.plugin.settings.weeklyFolder)
-          .onChange(async (v) => {
-            this.plugin.settings.weeklyFolder = v.trim() || "Life Calendar/Weekly";
-            await this.plugin.saveSettings();
-          }),
-      );
-
-    new Setting(containerEl)
-      .setName(t("settingsEventsFile"))
-      .setDesc(t("settingsEventsFileDesc"))
-      .addText((text) =>
-        text
-          .setPlaceholder("Life Calendar/Events.md")
-          .setValue(this.plugin.settings.eventsFile)
-          .onChange(async (v) => {
-            this.plugin.settings.eventsFile = v.trim() || "Life Calendar/Events.md";
-            await this.plugin.saveSettings();
-          }),
-      );
-
-    new Setting(containerEl)
-      .setName(t("settingsExportFile"))
-      .setDesc(t("settingsExportFileDesc"))
-      .addText((text) =>
-        text
-          .setPlaceholder("Life Calendar/backup.json")
-          .setValue(this.plugin.settings.exportFile)
-          .onChange(async (v) => {
-            this.plugin.settings.exportFile = v.trim() || "Life Calendar/backup.json";
-            await this.plugin.saveSettings();
-          }),
-      );
-
-    new Setting(containerEl)
-      .setName(t("settingsResetCustom"))
-      .setDesc(t("settingsResetCustomDesc"))
-      .addButton((btn) =>
-        btn.setButtonText(t("reset")).onClick(async () => {
-          this.plugin.settings.custom = {};
-          await this.plugin.saveSettings();
+        },
+      },
+      {
+        name: t("settingsLifespan"),
+        desc: t("settingsLifespanDesc", { min: LIFESPAN_MIN, max: LIFESPAN_MAX }),
+        control: {
+          type: "slider",
+          key: "lifespanYears",
+          min: LIFESPAN_MIN,
+          max: LIFESPAN_MAX,
+          step: 1,
+        },
+      },
+      {
+        name: t("settingsJournalFolder"),
+        desc: t("settingsJournalFolderDesc"),
+        control: { type: "text", key: "journalFolder", placeholder: "Life Calendar/Journal" },
+      },
+      {
+        name: t("settingsWeeklyFolder"),
+        desc: t("settingsWeeklyFolderDesc"),
+        control: { type: "text", key: "weeklyFolder", placeholder: "Life Calendar/Weekly" },
+      },
+      {
+        name: t("settingsEventsFile"),
+        desc: t("settingsEventsFileDesc"),
+        control: { type: "text", key: "eventsFile", placeholder: "Life Calendar/Events.md" },
+      },
+      {
+        name: t("settingsExportFile"),
+        desc: t("settingsExportFileDesc"),
+        control: { type: "text", key: "exportFile", placeholder: "Life Calendar/backup.json" },
+      },
+      {
+        name: t("settingsResetCustom"),
+        desc: t("settingsResetCustomDesc"),
+        action: () => {
+          s.custom = {};
+          void this.plugin.saveSettings();
           new Notice(t("colorsReset"));
-        }),
-      );
+        },
+      },
+    ];
 
-    // --- Поддержать проект
-    new Setting(containerEl).setName(t("settingsSupport")).setHeading();
-    containerEl.createEl("p", { cls: "lc-support-desc", text: t("settingsSupportDesc") });
-    for (const link of SUPPORT_LINKS) {
-      new Setting(containerEl)
-        .setName(link.name)
-        .setDesc(link.url)
-        .addButton((btn) =>
-          btn.setButtonText(t("open")).onClick(() => window.open(link.url, "_blank")),
-        );
+    const support: SettingGroupItem[] = [
+      { name: t("settingsSupport"), desc: t("settingsSupportDesc") },
+      ...SUPPORT_LINKS.map<SettingGroupItem>((link) => ({
+        name: link.name,
+        desc: link.url,
+        render: (setting: Setting) => {
+          setting.addButton((btn) =>
+            btn.setButtonText(t("open")).onClick(() => window.open(link.url, "_blank")),
+          );
+        },
+      })),
+      { name: t("supportCrypto") },
+      ...CRYPTO_ADDRESSES.map<SettingGroupItem>((c) => ({
+        name: t(c.key),
+        desc: c.address,
+        render: (setting: Setting) => {
+          setting.addButton((btn) =>
+            btn.setButtonText(t("copy")).onClick(async () => {
+              await navigator.clipboard.writeText(c.address);
+              new Notice(t("copied", { value: t(c.key) }));
+            }),
+          );
+        },
+      })),
+    ];
+
+    return [
+      { type: "group", heading: "My Life Calendar", items: main },
+      { type: "group", heading: t("settingsSupport"), items: support },
+    ];
+  }
+
+  getControlValue(key: string): unknown {
+    return (this.plugin.settings as unknown as Record<string, unknown>)[key];
+  }
+
+  setControlValue(key: string, value: unknown): void | Promise<void> {
+    const rec = this.plugin.settings as unknown as Record<string, unknown>;
+    if (PATH_KEYS.includes(key)) {
+      const fallback = DEFAULT_SETTINGS as unknown as Record<string, unknown>;
+      rec[key] = String(value).trim() || fallback[key];
+    } else {
+      rec[key] = value;
     }
-    new Setting(containerEl).setName(t("supportCrypto")).setHeading();
-    for (const c of CRYPTO_ADDRESSES) {
-      new Setting(containerEl)
-        .setName(t(c.key))
-        .setDesc(c.address)
-        .addButton((btn) =>
-          btn.setButtonText(t("copy")).onClick(async () => {
-            await navigator.clipboard.writeText(c.address);
-            new Notice(t("copied", { value: t(c.key) }));
-          }),
-        );
+    if (key === "language") {
+      setLanguage(resolveLanguage(String(value)));
+      this.update();
+      this.plugin.refreshViews();
+    } else if (key === "birthDate" || key === "lifespanYears") {
+      this.plugin.refreshViews();
     }
+    return this.plugin.saveSettings();
+  }
+
+  display(): void {
+    this.containerEl.empty();
   }
 }
