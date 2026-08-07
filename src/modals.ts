@@ -51,16 +51,16 @@ export class AddEntryModal extends Modal {
       try {
         await this.saveHandler(this.dateValue, text);
         this.close();
-      } catch (err) {
+      } catch (err: unknown) {
         console.error("Life Calendar: add entry", err);
-        new Notice(t("genericError", { error: err && err.message ? err.message : err }));
+        new Notice(t("genericError", { error: err instanceof Error ? err.message : String(err) }));
       }
     };
-    save.addEventListener("click", doSave);
+    save.addEventListener("click", () => void doSave());
     ta.addEventListener("keydown", (e) => {
       if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) {
         e.preventDefault();
-        doSave();
+        void doSave();
       }
     });
     ta.focus();
@@ -103,24 +103,28 @@ export class EventsModal extends Modal {
       item.createSpan({ cls: "lc-event-title", text: ev.title });
       const del = item.createEl("button", { cls: "lc-event-del", text: "🗑" });
       del.title = t("delete");
-      del.addEventListener("click", async () => {
-        this.events = this.events.filter((x) => !(x.date === ev.date && x.title === ev.title));
-        await this.save(this.events);
-        this.render();
-      });
-      item.addEventListener("click", async (e) => {
-        if (e.target === del) return;
-        const editModal = new EventEditModal(this.app, ev);
-        editModal.open();
-        const edited = await editModal.awaitResult();
-        if (edited) {
-          this.events = this.events.map((x) =>
-            x.date === ev.date && x.title === ev.title ? edited : x,
-          );
-          this.events.sort((a, b) => a.date.localeCompare(b.date) || a.title.localeCompare(b.title));
+      del.addEventListener("click", () => {
+        void (async () => {
+          this.events = this.events.filter((x) => !(x.date === ev.date && x.title === ev.title));
           await this.save(this.events);
           this.render();
-        }
+        })();
+      });
+      item.addEventListener("click", (e) => {
+        void (async () => {
+          if (e.target === del) return;
+          const editModal = new EventEditModal(this.app, ev);
+          editModal.open();
+          const edited = await editModal.awaitResult();
+          if (edited) {
+            this.events = this.events.map((x) =>
+              x.date === ev.date && x.title === ev.title ? edited : x,
+            );
+            this.events.sort((a, b) => a.date.localeCompare(b.date) || a.title.localeCompare(b.title));
+            await this.save(this.events);
+            this.render();
+          }
+        })();
       });
     }
     if (!this.events.length) {
@@ -128,16 +132,18 @@ export class EventsModal extends Modal {
     }
 
     const row = contentEl.createDiv({ cls: "lc-modal-row" });
-    row.createEl("button", { cls: "mod-cta", text: t("addBtn") }).addEventListener("click", async () => {
-      const addModal = new EventEditModal(this.app, null);
-      addModal.open();
-      const added = await addModal.awaitResult();
-      if (added) {
-        this.events.push(added);
-        this.events.sort((a, b) => a.date.localeCompare(b.date) || a.title.localeCompare(b.title));
-        await this.save(this.events);
-        this.render();
-      }
+    row.createEl("button", { cls: "mod-cta", text: t("addBtn") }).addEventListener("click", () => {
+      void (async () => {
+        const addModal = new EventEditModal(this.app, null);
+        addModal.open();
+        const added = await addModal.awaitResult();
+        if (added) {
+          this.events.push(added);
+          this.events.sort((a, b) => a.date.localeCompare(b.date) || a.title.localeCompare(b.title));
+          await this.save(this.events);
+          this.render();
+        }
+      })();
     });
     row.createEl("button", { cls: "lc-modal-cancel", text: t("close") }).addEventListener("click", () => this.close());
   }
@@ -294,11 +300,13 @@ export class WeekModal extends Modal {
     const entriesBlock = contentEl.createDiv({ cls: "lc-week-block" });
     const eHead = entriesBlock.createDiv({ cls: "lc-week-block-head" });
     eHead.createSpan({ cls: "lc-week-block-title", text: t("weekEntriesSection") });
-    eHead.createEl("button", { cls: "mod-cta lc-week-add", text: t("addEntry") }).addEventListener("click", async () => {
-      new AddEntryModal(this.app, wkStart.format("YYYY-MM-DD"), async (date, text) => {
-        await this.handlers.addEntry(date, text);
-        await this.reload();
-      }).open();
+    eHead.createEl("button", { cls: "mod-cta lc-week-add", text: t("addEntry") }).addEventListener("click", () => {
+      void (async () => {
+        new AddEntryModal(this.app, wkStart.format("YYYY-MM-DD"), async (date, text) => {
+          await this.handlers.addEntry(date, text);
+          await this.reload();
+        }).open();
+      })();
     });
     const eList = entriesBlock.createDiv({ cls: "lc-week-list" });
     const sortedEntries = [...this.entries].sort(
@@ -312,35 +320,43 @@ export class WeekModal extends Modal {
       if (e.index > 0) {
         const up = btns.createEl("button", { cls: "lc-week-btn", text: "▲" });
         up.title = t("up");
-        up.addEventListener("click", async () => {
-          await this.handlers.moveEntry(e.date, e.index, -1);
-          await this.reload();
+        up.addEventListener("click", () => {
+          void (async () => {
+            await this.handlers.moveEntry(e.date, e.index, -1);
+            await this.reload();
+          })();
         });
       }
       if (e.index < e.blocks - 1) {
         const down = btns.createEl("button", { cls: "lc-week-btn", text: "▼" });
         down.title = t("down");
-        down.addEventListener("click", async () => {
-          await this.handlers.moveEntry(e.date, e.index, 1);
-          await this.reload();
+        down.addEventListener("click", () => {
+          void (async () => {
+            await this.handlers.moveEntry(e.date, e.index, 1);
+            await this.reload();
+          })();
         });
       }
       const editBtn = btns.createEl("button", { cls: "lc-week-btn", text: "✏️" });
       editBtn.title = t("edit");
-      editBtn.addEventListener("click", async () => {
-        const m = new EntryEditModal(this.app, { date: e.date, text: e.text });
-        m.open();
-        const res = await m.awaitResult();
-        if (res) {
-          await this.handlers.updateEntry(e.date, e.index, res.date, res.text);
-          await this.reload();
-        }
+      editBtn.addEventListener("click", () => {
+        void (async () => {
+          const m = new EntryEditModal(this.app, { date: e.date, text: e.text });
+          m.open();
+          const res = await m.awaitResult();
+          if (res) {
+            await this.handlers.updateEntry(e.date, e.index, res.date, res.text);
+            await this.reload();
+          }
+        })();
       });
       const delBtn = btns.createEl("button", { cls: "lc-week-btn", text: "🗑" });
       delBtn.title = t("delete");
-      delBtn.addEventListener("click", async () => {
-        await this.handlers.deleteEntry(e.date, e.index);
-        await this.reload();
+      delBtn.addEventListener("click", () => {
+        void (async () => {
+          await this.handlers.deleteEntry(e.date, e.index);
+          await this.reload();
+        })();
       });
       item.createDiv({ cls: "lc-week-item-text", text: e.text });
     }
@@ -350,14 +366,16 @@ export class WeekModal extends Modal {
     const eventsBlock = contentEl.createDiv({ cls: "lc-week-block" });
     const sHead = eventsBlock.createDiv({ cls: "lc-week-block-head" });
     sHead.createSpan({ cls: "lc-week-block-title", text: t("weekEventsSection") });
-    sHead.createEl("button", { cls: "mod-cta lc-week-add", text: t("addEvent") }).addEventListener("click", async () => {
-      const m = new EventEditModal(this.app, { date: wkStart.format("YYYY-MM-DD"), color: HEART_COLORS[0], title: "" });
-      m.open();
-      const res = await m.awaitResult();
-      if (res) {
-        await this.handlers.addEvent(res);
-        await this.reload();
-      }
+    sHead.createEl("button", { cls: "mod-cta lc-week-add", text: t("addEvent") }).addEventListener("click", () => {
+      void (async () => {
+        const m = new EventEditModal(this.app, { date: wkStart.format("YYYY-MM-DD"), color: HEART_COLORS[0], title: "" });
+        m.open();
+        const res = await m.awaitResult();
+        if (res) {
+          await this.handlers.addEvent(res);
+          await this.reload();
+        }
+      })();
     });
     const sList = eventsBlock.createDiv({ cls: "lc-week-list" });
     for (const ev of this.events) {
@@ -370,20 +388,24 @@ export class WeekModal extends Modal {
       const btns = head.createDiv({ cls: "lc-week-item-btns" });
       const editBtn = btns.createEl("button", { cls: "lc-week-btn", text: "✏️" });
       editBtn.title = t("edit");
-      editBtn.addEventListener("click", async () => {
-        const m = new EventEditModal(this.app, ev);
-        m.open();
-        const res = await m.awaitResult();
-        if (res) {
-          await this.handlers.updateEvent(ev, res);
-          await this.reload();
-        }
+      editBtn.addEventListener("click", () => {
+        void (async () => {
+          const m = new EventEditModal(this.app, ev);
+          m.open();
+          const res = await m.awaitResult();
+          if (res) {
+            await this.handlers.updateEvent(ev, res);
+            await this.reload();
+          }
+        })();
       });
       const delBtn = btns.createEl("button", { cls: "lc-week-btn", text: "🗑" });
       delBtn.title = t("delete");
-      delBtn.addEventListener("click", async () => {
-        await this.handlers.deleteEvent(ev);
-        await this.reload();
+      delBtn.addEventListener("click", () => {
+        void (async () => {
+          await this.handlers.deleteEvent(ev);
+          await this.reload();
+        })();
       });
     }
     if (!this.events.length) sList.createDiv({ cls: "lc-week-empty", text: t("noEventsWeek") });
@@ -392,18 +414,22 @@ export class WeekModal extends Modal {
     const left = row.createDiv({ cls: "lc-modal-row-left" });
     const dayBtn = left.createEl("button", { cls: "lc-modal-cancel", text: t("openDayNotes") });
     dayBtn.type = "button";
-    dayBtn.addEventListener("click", async () => {
-      const paths = [...new Set(this.entries.map((e) => e.path))];
-      if (!paths.length) {
-        new Notice(t("weekNoEntries"));
-        return;
-      }
-      await this.handlers.openDayNotes(paths);
+    dayBtn.addEventListener("click", () => {
+      void (async () => {
+        const paths = [...new Set(this.entries.map((e) => e.path))];
+        if (!paths.length) {
+          new Notice(t("weekNoEntries"));
+          return;
+        }
+        await this.handlers.openDayNotes(paths);
+      })();
     });
     const weekBtn = left.createEl("button", { cls: "lc-modal-cancel", text: t("openWeekNote") });
     weekBtn.type = "button";
-    weekBtn.addEventListener("click", async () => {
-      await this.handlers.openWeekNote(this.entries);
+    weekBtn.addEventListener("click", () => {
+      void (async () => {
+        await this.handlers.openWeekNote(this.entries);
+      })();
     });
     row.createEl("button", { cls: "lc-modal-cancel", text: t("close") }).addEventListener("click", () => this.close());
   }

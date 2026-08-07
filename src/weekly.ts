@@ -1,6 +1,6 @@
 import { App, TFile } from "obsidian";
 import { JournalEntry, LifeCalendarSettings } from "./types";
-import { keyToDmy, weekdayName, dmyToKey, pad } from "./util";
+import { keyToDmy, weekdayName, pad } from "./util";
 import { t } from "./i18n";
 
 interface Section {

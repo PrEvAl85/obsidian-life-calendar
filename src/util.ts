@@ -56,7 +56,7 @@ export function cleanNoteText(content: string): string {
   text = text.replace(/^[ \t]*---\s*$/gm, "\n");
   text = text.replace(/!\[\[[^\]]+\]\]/g, "");
   text = text.replace(/\[\[([^\]|]+)\|([^\]]+)\]\]/g, "$2");
-  text = text.replace(/\[\[([^\]]+)\]\]/g, (_, x) => x.split("#", 1)[0].trim());
+  text = text.replace(/\[\[([^\]]+)\]\]/g, (_, x: string) => x.split("#", 1)[0].trim());
   text = text.replace(/(?<![\w])#[\wа-яё][\wа-яё-]*/g, "");
   text = text.replace(/^[ \t]+/gm, "");
   text = text.replace(/[ \t]+/g, " ");

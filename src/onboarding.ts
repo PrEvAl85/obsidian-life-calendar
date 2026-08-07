@@ -13,7 +13,7 @@ export async function setupStructure(app: App, settings: LifeCalendarSettings): 
     if (!folder) {
       try {
         await app.vault.createFolder(dir);
-      } catch (e) {
+      } catch {
         // уже создана
       }
     }
@@ -24,13 +24,13 @@ export async function setupStructure(app: App, settings: LifeCalendarSettings): 
     if (dir && !app.vault.getAbstractFileByPath(dir)) {
       try {
         await app.vault.createFolder(dir);
-      } catch (e) {
+      } catch {
         // уже создана
       }
     }
     try {
       await app.vault.create(settings.eventsFile, "---\nevents:\n---\n\n");
-    } catch (e) {
+    } catch {
       // файл создался параллельно
     }
   }
@@ -72,20 +72,22 @@ export class BirthDateModal extends Modal {
       cls: "mod-cta",
       text: t("start"),
     });
-    saveBtn.addEventListener("click", async () => {
-      const v = this.birthDate;
-      if (!v) {
-        new Notice(t("birthDateRequired"));
-        return;
-      }
-      if (!/^\d{4}-\d{2}-\d{2}$/.test(v)) {
-        new Notice(t("invalidDateFormat"));
-        return;
-      }
-      this.settings.birthDate = v;
-      this.resolved = true;
-      await this.onSave();
-      this.close();
+    saveBtn.addEventListener("click", () => {
+      void (async () => {
+        const v = this.birthDate;
+        if (!v) {
+          new Notice(t("birthDateRequired"));
+          return;
+        }
+        if (!/^\d{4}-\d{2}-\d{2}$/.test(v)) {
+          new Notice(t("invalidDateFormat"));
+          return;
+        }
+        this.settings.birthDate = v;
+        this.resolved = true;
+        await this.onSave();
+        this.close();
+      })();
     });
   }
 

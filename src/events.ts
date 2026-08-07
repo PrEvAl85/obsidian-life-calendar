@@ -71,7 +71,7 @@ export class EventsStore {
     if (!folder) {
       try {
         await this.app.vault.createFolder(dir);
-      } catch (e) {
+      } catch {
         // Папка могла создаться параллельно
       }
     }

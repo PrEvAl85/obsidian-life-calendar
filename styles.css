@@ -130,6 +130,9 @@
   box-shadow: var(--shadow-s);
   padding: 8px;
 }
+.lc-tip.is-visible {
+  display: block;
+}
 .lc-tip-colors {
   display: flex;
   align-items: center;

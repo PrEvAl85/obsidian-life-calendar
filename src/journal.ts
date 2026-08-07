@@ -124,7 +124,7 @@ export class JournalStore {
     if (!body.length) {
       // Записей не осталось: файл удаляем, только если в шапке нет ручного содержимого
       if (!cleanNoteText(header)) {
-        await this.app.vault.delete(file);
+        await this.app.fileManager.trashFile(file);
         return true;
       }
     }

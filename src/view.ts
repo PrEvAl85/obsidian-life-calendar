@@ -45,10 +45,7 @@ export class LifeCalendarView extends ItemView {
     const s = this.plugin.settings;
 
     if (!/^\d{4}-\d{2}-\d{2}$/.test(s.birthDate)) {
-      container.createEl("div", {
-        cls: "lc-no-birthdate",
-        text: t("noBirthDate"),
-      });
+      container.createDiv({ cls: "lc-no-birthdate", text: t("noBirthDate") });
       return;
     }
 
@@ -61,7 +58,7 @@ export class LifeCalendarView extends ItemView {
     const today = moment().startOf("day");
     const start = moment(s.birthDate, "YYYY-MM-DD").startOf("day");
     if (!start.isValid()) {
-      container.createEl("div", { cls: "lc-no-birthdate", text: t("invalidBirthDate") });
+      container.createDiv({ cls: "lc-no-birthdate", text: t("invalidBirthDate") });
       return;
     }
 
@@ -111,14 +108,14 @@ export class LifeCalendarView extends ItemView {
 
     const grid = container.createDiv({ cls: "life-cal-wrap" }).createDiv({ cls: "life-cal" });
     const startYear = start.year();
-    const rows: string[] = [];
 
     for (let r = 0; r < lifespan; r++) {
       const year = startYear + r;
       const yearWeeks = buildWeeksForYear(year);
       const birthdayThisYear = moment(`${year}-${start.format("MM-DD")}`, "YYYY-MM-DD").startOf("day");
       const ageThisYear = year - start.year();
-      let rowHtml = `<div class="row"><span class="age-label">${ageThisYear}</span>`;
+      const row = grid.createDiv({ cls: "row" });
+      row.createSpan({ cls: "age-label", text: String(ageThisYear) });
 
       for (let c = 0; c < cols; c++) {
         const weekStart = yearWeeks[c].start.clone().startOf("day");
@@ -126,7 +123,7 @@ export class LifeCalendarView extends ItemView {
 
         let cls = "heart empty";
         let ch = emptyChar;
-        let colorStyle = "";
+        let customColor: string | null = null;
         let tooltip = `${weekStart.format("DD.MM.YYYY")}–${weekEnd.format("DD.MM.YYYY")}`;
 
         if (year === start.year()) {
@@ -157,7 +154,7 @@ export class LifeCalendarView extends ItemView {
           for (const ev of events) {
             const evDate = moment(ev.date, "YYYY-MM-DD").startOf("day");
             if (evDate.isSameOrAfter(weekStart, "day") && evDate.isSameOrBefore(weekEnd, "day")) {
-              colorStyle = `style="color:${ev.color}"`;
+              customColor = ev.color;
               tooltip = `${evDate.format("DD.MM.YY")} — ${ev.title}`;
               ch = filledChar;
               break;
@@ -190,25 +187,24 @@ export class LifeCalendarView extends ItemView {
           if (src.entries.length > 7) tooltip += t("moreEntries", { n: src.entries.length - 7 });
         }
 
-        let weekStyle = colorStyle;
+        let ringColor: string | null = null;
         if (src) {
           cls += " js-tip";
           const st: WeekStyle = s.custom[mk] || {};
-          if (st.color || st.ring) {
-            const parts: string[] = [];
-            if (st.color) parts.push("color:" + st.color);
-            if (st.ring) parts.push("--lc-ring:" + st.ring);
-            weekStyle = 'style="' + parts.join("; ") + '"';
-            if (st.ring) cls += " has-ring";
+          if (st.color) customColor = st.color;
+          if (st.ring) {
+            ringColor = st.ring;
+            cls += " has-ring";
           }
         }
-        rowHtml += `<span class="${cls}" ${weekStyle} data-tip="${tooltip.replace(/"/g, "&quot;")}" data-week="${keyToDmy(mk)}"><span class="h-glyph">${ch}</span></span>`;
+        const cell = row.createSpan({ cls, attr: { "data-week": keyToDmy(mk), "data-tip": tooltip } });
+        if (customColor) cell.style.setProperty("color", customColor);
+        if (ringColor) cell.style.setProperty("--lc-ring", ringColor);
+        cell.createSpan({ cls: "h-glyph", text: ch });
       }
 
-      rowHtml += `<span class="year-label">${year}</span></div>`;
-      rows.push(rowHtml);
+      row.createSpan({ cls: "year-label", text: String(year) });
     }
-    grid.innerHTML = rows.join("");
 
     this.attachTooltip(grid, srcCache);
     this.attachClicks(grid, addBtn, evBtn, expBtn);
@@ -221,17 +217,10 @@ export class LifeCalendarView extends ItemView {
     let tipTimer: number | null = null;
     let tipKey: string | null = null;
 
-    const hideTip = () => {
-      if (tipTimer !== null) {
-        window.clearTimeout(tipTimer);
-        tipTimer = null;
-      }
-      tip.style.display = "none";
-    };
     const scheduleHideTip = () => {
       if (tipTimer !== null) window.clearTimeout(tipTimer);
       tipTimer = window.setTimeout(() => {
-        tip.style.display = "none";
+        tip.removeClass("is-visible");
         tipTimer = null;
       }, 180);
     };
@@ -258,7 +247,7 @@ export class LifeCalendarView extends ItemView {
       const mk = dmyToKey(name);
       if (!srcCache.get(mk)) return;
       if (tipTimer !== null) window.clearTimeout(tipTimer);
-      if (!(tipKey === mk && tip.style.display === "block")) {
+      if (!(tipKey === mk && tip.hasClass("is-visible"))) {
         tipKey = mk;
         while (tip.firstChild) tip.removeChild(tip.firstChild);
         const text = el.dataset.tip || "";
@@ -292,7 +281,7 @@ export class LifeCalendarView extends ItemView {
         rreset.textContent = "✕";
         rreset.title = t("resetRing");
       }
-      tip.style.display = "block";
+      tip.addClass("is-visible");
       const hr = el.getBoundingClientRect();
       const wr = wrap.getBoundingClientRect();
       const vr = (container.closest(".view-content") || container).getBoundingClientRect();
@@ -327,27 +316,28 @@ export class LifeCalendarView extends ItemView {
     });
     tip.addEventListener("mouseleave", () => scheduleHideTip());
 
-    tip.addEventListener("click", async (e) => {
+    tip.addEventListener("click", (e) => {
+      void (async () => {
       const mk = tipKey;
       if (!mk) return;
       const target = e.target as HTMLElement;
       const custom = this.plugin.settings.custom;
       const setStyle = async (patch: Partial<WeekStyle>, clearKey: keyof WeekStyle) => {
         if (!custom[mk]) custom[mk] = {};
-        const current = custom[mk] as WeekStyle;
+        const current = custom[mk];
         if (current[clearKey] === patch[clearKey]) delete current[clearKey];
         else Object.assign(current, patch);
         await this.plugin.saveSettings();
         updateHeartStyle(mk);
         updateTipState();
       };
-      const sw = target.closest(".lc-csw") as HTMLElement | null;
+      const sw = target.closest(".lc-csw");
       if (sw) {
         const c = sw.getAttribute("data-c");
         if (c) await setStyle({ color: c }, "color");
         return;
       }
-      const ring = target.closest(".lc-ring") as HTMLElement | null;
+      const ring = target.closest(".lc-ring");
       if (ring) {
         const r = ring.getAttribute("data-r");
         if (r) await setStyle({ ring: r }, "ring");
@@ -367,6 +357,7 @@ export class LifeCalendarView extends ItemView {
         updateTipState();
         return;
       }
+      })();
     });
   }
 
@@ -376,7 +367,6 @@ export class LifeCalendarView extends ItemView {
     evBtn: HTMLElement,
     expBtn: HTMLElement,
   ): void {
-    const s = this.plugin.settings;
     const today = moment().startOf("day").format("YYYY-MM-DD");
 
     addBtn.addEventListener("click", () => {
@@ -395,17 +385,19 @@ export class LifeCalendarView extends ItemView {
       ).open();
     });
 
-    expBtn.addEventListener("click", async () => {
-      try {
-        const entries = await this.plugin.journal.listAll();
-        const events = await this.plugin.events.read();
-        const json = this.plugin.export.buildJson(entries, events);
-        const path = await this.plugin.export.writeBackup(json);
-        new Notice(t("exportDone", { path, entries: entries.length, events: events.length }), 6000);
-      } catch (err) {
-        console.error("Life Calendar: export", err);
-        new Notice(t("exportError", { error: err && err.message ? err.message : err }));
-      }
+    expBtn.addEventListener("click", () => {
+      void (async () => {
+        try {
+          const entries = await this.plugin.journal.listAll();
+          const events = await this.plugin.events.read();
+          const json = this.plugin.export.buildJson(entries, events);
+          const path = await this.plugin.export.writeBackup(json);
+          new Notice(t("exportDone", { path, entries: entries.length, events: events.length }), 6000);
+        } catch (err: unknown) {
+          console.error("Life Calendar: export", err);
+          new Notice(t("exportError", { error: err instanceof Error ? err.message : String(err) }));
+        }
+      })();
     });
 
     grid.addEventListener("click", (evt) => {

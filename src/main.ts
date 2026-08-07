@@ -43,9 +43,9 @@ export default class LifeCalendarPlugin extends Plugin {
           try {
             const path = await this.journal.addEntry(date, text);
             new Notice(t("entryAdded", { path }));
-          } catch (err) {
+          } catch (err: unknown) {
             console.error("Life Calendar: add entry", err);
-            new Notice(t("genericError", { error: err && err.message ? err.message : err }));
+            new Notice(t("genericError", { error: err instanceof Error ? err.message : String(err) }));
           }
         }).open();
       },
@@ -89,7 +89,7 @@ export default class LifeCalendarPlugin extends Plugin {
   }
 
   async loadSettings(): Promise<void> {
-    this.settings = Object.assign({}, DEFAULT_SETTINGS, await this.loadData());
+    this.settings = Object.assign({}, DEFAULT_SETTINGS, (await this.loadData()) as Partial<LifeCalendarSettings>);
   }
 
   async saveSettings(): Promise<void> {
@@ -99,7 +99,7 @@ export default class LifeCalendarPlugin extends Plugin {
   async openLifeCalendar(): Promise<void> {
     const leaves = this.app.workspace.getLeavesOfType(VIEW_TYPE_LIFE_CALENDAR);
     if (leaves.length) {
-      this.app.workspace.revealLeaf(leaves[0]);
+      this.app.workspace.setActiveLeaf(leaves[0], { focus: true });
     } else {
       const leaf = this.app.workspace.getLeaf(true);
       await leaf.setViewState({ type: VIEW_TYPE_LIFE_CALENDAR, active: true });
@@ -139,9 +139,9 @@ export default class LifeCalendarPlugin extends Plugin {
         t("exportDone", { path, entries: entries.length, events: events.length }),
         6000,
       );
-    } catch (err) {
+    } catch (err: unknown) {
       console.error("Life Calendar: export", err);
-      new Notice(t("exportError", { error: err && err.message ? err.message : err }));
+      new Notice(t("exportError", { error: err instanceof Error ? err.message : String(err) }));
     }
   }
 }

@@ -36,7 +36,7 @@ export class ExportManager {
     if (dir && !this.app.vault.getAbstractFileByPath(dir)) {
       try {
         await this.app.vault.createFolder(dir);
-      } catch (e) {
+      } catch {
         // уже создана
       }
     }

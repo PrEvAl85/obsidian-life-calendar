@@ -26,10 +26,10 @@ export class LifeCalendarSettingTab extends PluginSettingTab {
   display(): void {
     const { containerEl } = this;
     containerEl.empty();
-    containerEl.createEl("h2", { text: "Life Calendar" });
+    new Setting(containerEl).setName("Life Calendar").setHeading();
 
     // --- Локализация
-    containerEl.createEl("h3", { text: t("settingsLanguage") });
+    new Setting(containerEl).setName(t("settingsLanguage")).setHeading();
     new Setting(containerEl)
       .setName(t("settingsLanguage"))
       .setDesc(t("settingsLanguageDesc"))
@@ -69,7 +69,6 @@ export class LifeCalendarSettingTab extends PluginSettingTab {
         slider
           .setLimits(LIFESPAN_MIN, LIFESPAN_MAX, 1)
           .setValue(this.plugin.settings.lifespanYears)
-          .setDynamicTooltip()
           .onChange(async (v) => {
             this.plugin.settings.lifespanYears = v;
             await this.plugin.saveSettings();
@@ -141,7 +140,7 @@ export class LifeCalendarSettingTab extends PluginSettingTab {
       );
 
     // --- Поддержать проект
-    containerEl.createEl("h3", { text: t("settingsSupport") });
+    new Setting(containerEl).setName(t("settingsSupport")).setHeading();
     containerEl.createEl("p", { cls: "lc-support-desc", text: t("settingsSupportDesc") });
     for (const link of SUPPORT_LINKS) {
       new Setting(containerEl)
@@ -151,7 +150,7 @@ export class LifeCalendarSettingTab extends PluginSettingTab {
           btn.setButtonText(t("open")).onClick(() => window.open(link.url, "_blank")),
         );
     }
-    containerEl.createEl("h4", { text: t("supportCrypto") });
+    new Setting(containerEl).setName(t("supportCrypto")).setHeading();
     for (const c of CRYPTO_ADDRESSES) {
       new Setting(containerEl)
         .setName(t(c.key))
