@@ -2,6 +2,7 @@ import { App, TFile } from "obsidian";
 import { JournalEntry, LifeCalendarSettings } from "./types";
 import { cleanNoteText, keyToDmy, pad } from "./util";
 import { monthNameGen } from "./i18n";
+import { mondayKeyOf } from "./date";
 
 const FILE_RE = /^(\d{1,2})\.(\d{1,2})\.(\d{4})\.md$/;
 
@@ -152,9 +153,7 @@ export class JournalStore {
   }
 
   private weekOf(dateKey: string): string {
-    const mom = window.moment(dateKey, "YYYY-MM-DD");
-    const wd = (mom.day() + 6) % 7;
-    return mom.clone().subtract(wd, "days").format("YYYY-MM-DD");
+    return mondayKeyOf(dateKey);
   }
 }
 

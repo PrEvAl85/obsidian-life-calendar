@@ -1,5 +1,5 @@
-import { moment } from "obsidian";
 import { dayName, monthNameGen } from "./i18n";
+import { dayIndexOfKey, mondayKeyOf as mondayOfKey } from "./date";
 
 export function pad(n: number): string {
   return (n < 10 ? "0" : "") + n;
@@ -9,15 +9,9 @@ export function fmtKey(y: number, m: number, d: number): string {
   return y + "-" + pad(m) + "-" + pad(d);
 }
 
-/** Понедельник недели (ключ YYYY-MM-DD) для даты. */
-export function mondayKeyOf(mom: moment.Moment): string {
-  const wd = (mom.day() + 6) % 7; // 0 = понедельник
-  return mom.clone().subtract(wd, "days").format("YYYY-MM-DD");
-}
-
 /** Ключ недели (понедельник YYYY-MM-DD) по ключу даты. */
 export function weekKeyOf(dateKey: string): string {
-  return mondayKeyOf(moment(dateKey, "YYYY-MM-DD"));
+  return mondayOfKey(dateKey);
 }
 
 /** DD.MM.YYYY (имя файла) -> YYYY-MM-DD (ключ). */
@@ -35,7 +29,7 @@ export function keyToDmy(key: string): string {
 export const RU_WEEKDAYS = ["воскресенье", "понедельник", "вторник", "среда", "четверг", "пятница", "суббота"];
 
 export function weekdayName(dateKey: string): string {
-  return dayName(moment(dateKey, "YYYY-MM-DD").day());
+  return dayName(dayIndexOfKey(dateKey));
 }
 
 export function formatRuDate(y: number, m: number, d: number): string {

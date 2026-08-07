@@ -150,8 +150,4 @@ export class LifeCalendarSettingTab extends PluginSettingTab {
     }
     return this.plugin.saveSettings();
   }
-
-  display(): void {
-    this.containerEl.empty();
-  }
 }

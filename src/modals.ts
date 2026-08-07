@@ -1,4 +1,5 @@
-import { App, Modal, Notice, moment } from "obsidian";
+import { App, Modal, Notice } from "obsidian";
+import { addDays, formatKey, todayKey } from "./date";
 import { HEART_COLORS, JournalEntry, LifeEvent } from "./types";
 import { keyToDmy, weekdayName } from "./util";
 import { t } from "./i18n";
@@ -186,7 +187,7 @@ class EventEditModal extends Modal {
     const dateWrap = contentEl.createDiv({ cls: "lc-modal-field" });
     dateWrap.createEl("label", { text: t("date") });
     const dateInput = dateWrap.createEl("input", { type: "date" });
-    dateInput.value = this.initial ? this.initial.date : window.moment().format("YYYY-MM-DD");
+    dateInput.value = this.initial ? this.initial.date : todayKey();
 
     const titleWrap = contentEl.createDiv({ cls: "lc-modal-field" });
     titleWrap.createEl("label", { text: t("title") });
@@ -287,12 +288,12 @@ export class WeekModal extends Modal {
     contentEl.empty();
     contentEl.addClass("lc-modal");
 
-    const wkStart = moment(this.weekKey, "YYYY-MM-DD");
-    const wkEnd = wkStart.clone().add(6, "days");
+    const wkStart = this.weekKey;
+    const wkEnd = addDays(wkStart, 6);
     contentEl.createEl("h3", {
       text: t("weekTitle", {
-        start: wkStart.format("DD.MM.YYYY"),
-        end: wkEnd.format("DD.MM.YYYY"),
+        start: formatKey(wkStart),
+        end: formatKey(wkEnd),
       }),
     });
 
@@ -302,7 +303,7 @@ export class WeekModal extends Modal {
     eHead.createSpan({ cls: "lc-week-block-title", text: t("weekEntriesSection") });
     eHead.createEl("button", { cls: "mod-cta lc-week-add", text: t("addEntry") }).addEventListener("click", () => {
       void (async () => {
-        new AddEntryModal(this.app, wkStart.format("YYYY-MM-DD"), async (date, text) => {
+        new AddEntryModal(this.app, wkStart, async (date, text) => {
           await this.handlers.addEntry(date, text);
           await this.reload();
         }).open();
@@ -368,7 +369,7 @@ export class WeekModal extends Modal {
     sHead.createSpan({ cls: "lc-week-block-title", text: t("weekEventsSection") });
     sHead.createEl("button", { cls: "mod-cta lc-week-add", text: t("addEvent") }).addEventListener("click", () => {
       void (async () => {
-        const m = new EventEditModal(this.app, { date: wkStart.format("YYYY-MM-DD"), color: HEART_COLORS[0], title: "" });
+        const m = new EventEditModal(this.app, { date: wkStart, color: HEART_COLORS[0], title: "" });
         m.open();
         const res = await m.awaitResult();
         if (res) {

@@ -252,12 +252,12 @@ export function getLanguage(): Language {
 
 /**
  * Выбор языка из настройки плагина: "ru"/"en" — явно,
- * "" (или любое другое) — по языку Obsidian (moment.locale), fallback английский.
+ * "" (или любое другое) — по языку Obsidian (localStorage "language"), fallback английский.
  */
 export function resolveLanguage(pref: string): Language {
   if (pref === "ru") return "ru";
   if (pref === "en") return "en";
-  const loc = (window.moment ? window.moment.locale() : "") || (navigator.language || "en").toLowerCase();
+  const loc = (localStorage.getItem("language") || navigator.language || "en").toLowerCase();
   return loc.startsWith("ru") ? "ru" : "en";
 }
 
@@ -275,7 +275,7 @@ export function t(key: keyof Dict, params?: Record<string, string | number>): st
 const DAYS_RU = ["воскресенье", "понедельник", "вторник", "среда", "четверг", "пятница", "суббота"];
 const DAYS_EN = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
 
-/** Название дня недели по индексу moment.day() (0 = воскресенье). */
+/** Название дня недели по индексу (0 = воскресенье). */
 export function dayName(i: number): string {
   return lang === "ru" ? DAYS_RU[i] || "" : DAYS_EN[i] || "";
 }

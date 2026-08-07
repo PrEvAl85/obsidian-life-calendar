@@ -1,7 +1,8 @@
-import { ItemView, WorkspaceLeaf, TFile, moment, Notice } from "obsidian";
+import { ItemView, WorkspaceLeaf, TFile, Notice } from "obsidian";
 import LifeCalendarPlugin from "./main";
 import { HEART_COLORS, RING_COLORS, JournalEntry, LifeEvent, WeekStyle } from "./types";
 import { keyToDmy, dmyToKey, weekdayName, weekKeyOf } from "./util";
+import { addDays, addYears, diffDays, diffYears, formatKey, isValidKey, mondayKeyOf, monthDayOf, todayKey, yearOf } from "./date";
 import { AddEntryModal, EventsModal, WeekModal } from "./modals";
 import { t } from "./i18n";
 
@@ -55,27 +56,27 @@ export class LifeCalendarView extends ItemView {
     const entries = await journalStore.listAll();
     const events: LifeEvent[] = await eventsStore.read();
 
-    const today = moment().startOf("day");
-    const start = moment(s.birthDate, "YYYY-MM-DD").startOf("day");
-    if (!start.isValid()) {
+    const today = todayKey();
+    const start = s.birthDate;
+    if (!isValidKey(start)) {
       container.createDiv({ cls: "lc-no-birthdate", text: t("invalidBirthDate") });
       return;
     }
 
-    const yearsLived = today.diff(start, "years");
-    const lastBirthday = start.clone().add(yearsLived, "years");
-    const weeksSinceLastBirthday = Math.floor(today.diff(lastBirthday, "days") / 7);
+    const yearsLived = diffYears(start, today);
+    const lastBirthday = addYears(start, yearsLived);
+    const weeksSinceLastBirthday = Math.floor(diffDays(lastBirthday, today) / 7);
 
     // Недели с записями: weekKey -> записи
     const srcCache = new Map<string, WeekSource>();
-    const entryMomentCache = new Map<string, moment.Moment>();
+    const entryKeyCache = new Map<string, string>();
     for (const e of entries) {
-      const mk = mondayKeyOf(moment(e.date, "YYYY-MM-DD"));
+      const mk = mondayKeyOf(e.date);
       let src = srcCache.get(mk);
       if (!src) {
         src = { entries: [] };
         srcCache.set(mk, src);
-        entryMomentCache.set(mk, moment(mk, "YYYY-MM-DD").startOf("day"));
+        entryKeyCache.set(mk, mk);
       }
       src.entries.push(e);
     }
@@ -99,50 +100,49 @@ export class LifeCalendarView extends ItemView {
 
     const legend = container.createDiv({ cls: "legend" });
     legend.textContent = t("legend", {
-      birth: start.format("DD.MM.YYYY"),
-      today: today.format("DD.MM.YYYY"),
+      birth: formatKey(start),
+      today: formatKey(today),
       age: yearsLived,
       weeks: weeksSinceLastBirthday,
       weeksWith: srcCache.size,
     });
 
     const grid = container.createDiv({ cls: "life-cal-wrap" }).createDiv({ cls: "life-cal" });
-    const startYear = start.year();
+    const startYear = yearOf(start);
 
     for (let r = 0; r < lifespan; r++) {
       const year = startYear + r;
       const yearWeeks = buildWeeksForYear(year);
-      const birthdayThisYear = moment(`${year}-${start.format("MM-DD")}`, "YYYY-MM-DD").startOf("day");
-      const ageThisYear = year - start.year();
+      const birthdayThisYear = year + "-" + monthDayOf(start);
+      const ageThisYear = year - startYear;
       const row = grid.createDiv({ cls: "row" });
       row.createSpan({ cls: "age-label", text: String(ageThisYear) });
 
       for (let c = 0; c < cols; c++) {
-        const weekStart = yearWeeks[c].start.clone().startOf("day");
-        const weekEnd = yearWeeks[c].end.clone().endOf("day");
+        const weekStart = yearWeeks[c].startKey;
+        const weekEnd = yearWeeks[c].endKey;
 
         let cls = "heart empty";
         let ch = emptyChar;
         let customColor: string | null = null;
-        let tooltip = `${weekStart.format("DD.MM.YYYY")}–${weekEnd.format("DD.MM.YYYY")}`;
+        let tooltip = `${formatKey(weekStart)}–${formatKey(weekEnd)}`;
 
-        if (year === start.year()) {
-          if (weekEnd.isBefore(start, "day")) {
+        if (year === startYear) {
+          if (weekEnd < start) {
             cls = "heart empty";
             ch = emptyChar;
-          } else if (weekStart.isSameOrBefore(today, "day")) {
+          } else if (weekStart <= today) {
             cls = "heart filled";
             ch = filledChar;
           }
         } else {
-          if (weekStart.isSameOrBefore(today, "day")) {
+          if (weekStart <= today) {
             cls = "heart filled";
             ch = filledChar;
           }
         }
 
-        const isBirthdayWeek =
-          birthdayThisYear.isSameOrAfter(weekStart, "day") && birthdayThisYear.isSameOrBefore(weekEnd, "day");
+        const isBirthdayWeek = birthdayThisYear >= weekStart && birthdayThisYear <= weekEnd;
 
         if (isBirthdayWeek) {
           cls = "heart birthday";
@@ -152,10 +152,10 @@ export class LifeCalendarView extends ItemView {
 
         if (!isBirthdayWeek) {
           for (const ev of events) {
-            const evDate = moment(ev.date, "YYYY-MM-DD").startOf("day");
-            if (evDate.isSameOrAfter(weekStart, "day") && evDate.isSameOrBefore(weekEnd, "day")) {
+            const evDate = ev.date;
+            if (evDate >= weekStart && evDate <= weekEnd) {
               customColor = ev.color;
-              tooltip = `${evDate.format("DD.MM.YY")} — ${ev.title}`;
+              tooltip = `${formatKey(evDate, true)} — ${ev.title}`;
               ch = filledChar;
               break;
             }
@@ -167,8 +167,8 @@ export class LifeCalendarView extends ItemView {
         if (!src) {
           // Частичные ячейки года могут охватывать несколько ISO-недель
           for (const k of srcCache.keys()) {
-            const kd = entryMomentCache.get(k);
-            if (kd && kd.isSameOrAfter(weekStart, "day") && kd.isSameOrBefore(weekEnd, "day")) {
+            const kd = entryKeyCache.get(k);
+            if (kd && kd >= weekStart && kd <= weekEnd) {
               const cand = srcCache.get(k);
               if (cand) {
                 mk = k;
@@ -302,13 +302,13 @@ export class LifeCalendarView extends ItemView {
     };
 
     wrap.addEventListener("mouseover", (e) => {
-      const heart = (e.target as HTMLElement).closest(".heart.js-tip") as HTMLElement | null;
+      const heart = targetEl(e)?.closest(".heart.js-tip") as HTMLElement | null;
       if (!heart) return;
       if (tipTimer !== null) window.clearTimeout(tipTimer);
       showTip(heart);
     });
     wrap.addEventListener("mouseout", (e) => {
-      const heart = (e.target as HTMLElement).closest(".heart.js-tip") as HTMLElement | null;
+      const heart = targetEl(e)?.closest(".heart.js-tip") as HTMLElement | null;
       if (heart) scheduleHideTip();
     });
     tip.addEventListener("mouseenter", () => {
@@ -367,7 +367,7 @@ export class LifeCalendarView extends ItemView {
     evBtn: HTMLElement,
     expBtn: HTMLElement,
   ): void {
-    const today = moment().startOf("day").format("YYYY-MM-DD");
+    const today = todayKey();
 
     addBtn.addEventListener("click", () => {
       new AddEntryModal(this.app, today, async (date, text) => {
@@ -401,7 +401,7 @@ export class LifeCalendarView extends ItemView {
     });
 
     grid.addEventListener("click", (evt) => {
-      const heart = (evt.target as HTMLElement).closest(".heart") as HTMLElement | null;
+      const heart = targetEl(evt)?.closest(".heart") as HTMLElement | null;
       if (!heart) return;
       evt.preventDefault();
       evt.stopPropagation();
@@ -463,35 +463,34 @@ export class LifeCalendarView extends ItemView {
   }
 }
 
-function mondayKeyOf(mom: moment.Moment): string {
-  const wd = (mom.day() + 6) % 7; // 0 = понедельник
-  return mom.clone().subtract(wd, "days").format("YYYY-MM-DD");
+function targetEl(e: Event): HTMLElement | null {
+  return e.target instanceof HTMLElement ? e.target : null;
 }
 
 interface WeekRange {
-  start: moment.Moment;
-  end: moment.Moment;
+  startKey: string;
+  endKey: string;
 }
 
 function buildWeeksForYear(year: number, cols = 52): WeekRange[] {
-  const yearStart = moment(`${year}-01-01`, "YYYY-MM-DD").startOf("day");
-  const yearEnd = moment(`${year}-12-31`, "YYYY-MM-DD").endOf("day");
+  const yearStart = year + "-01-01";
+  const yearEnd = year + "-12-31";
   const weeks: WeekRange[] = [];
-  let wStart = yearStart.clone().startOf("day");
-  let wEnd = wStart.clone().endOf("isoWeek").endOf("day");
-  if (wEnd.isAfter(yearEnd)) wEnd = yearEnd.clone();
-  weeks.push({ start: wStart.clone().startOf("day"), end: wEnd.clone().endOf("day") });
+  let wStart = yearStart;
+  let wEnd = addDays(mondayKeyOf(yearStart), 6);
+  if (wEnd > yearEnd) wEnd = yearEnd;
+  weeks.push({ startKey: wStart, endKey: wEnd });
   for (let i = 1; i < cols - 1; i++) {
-    wStart = weeks[i - 1].end.clone().add(1, "day").startOf("day");
-    wEnd = wStart.clone().add(6, "day").endOf("day");
-    if (wStart.isAfter(yearEnd)) wStart = yearEnd.clone().startOf("day");
-    if (wEnd.isAfter(yearEnd)) wEnd = yearEnd.clone();
-    weeks.push({ start: wStart.clone().startOf("day"), end: wEnd.clone().endOf("day") });
+    wStart = addDays(weeks[i - 1].endKey, 1);
+    wEnd = addDays(wStart, 6);
+    if (wStart > yearEnd) wStart = yearEnd;
+    if (wEnd > yearEnd) wEnd = yearEnd;
+    weeks.push({ startKey: wStart, endKey: wEnd });
   }
-  const prevEnd = weeks[weeks.length - 1].end.clone();
-  wStart = prevEnd.clone().add(1, "day").startOf("day");
-  if (wStart.isAfter(yearEnd)) wStart = yearEnd.clone().startOf("day");
-  wEnd = yearEnd.clone().endOf("day");
-  weeks.push({ start: wStart.clone().startOf("day"), end: wEnd.clone().endOf("day") });
+  const prevEnd = weeks[weeks.length - 1].endKey;
+  wStart = addDays(prevEnd, 1);
+  if (wStart > yearEnd) wStart = yearEnd;
+  wEnd = yearEnd;
+  weeks.push({ startKey: wStart, endKey: wEnd });
   return weeks;
 }

@@ -1,4 +1,4 @@
-import { Notice, Plugin, moment } from "obsidian";
+import { Notice, Plugin } from "obsidian";
 import { DEFAULT_SETTINGS, LifeCalendarSettings } from "./types";
 import { JournalStore } from "./journal";
 import { WeekStore } from "./weekly";
@@ -9,6 +9,7 @@ import { LifeCalendarSettingTab } from "./settings";
 import { LifeCalendarView, VIEW_TYPE_LIFE_CALENDAR } from "./view";
 import { AddEntryModal, EventsModal } from "./modals";
 import { resolveLanguage, setLanguage, t } from "./i18n";
+import { todayKey } from "./date";
 
 export default class LifeCalendarPlugin extends Plugin {
   settings: LifeCalendarSettings = { ...DEFAULT_SETTINGS };
@@ -39,7 +40,7 @@ export default class LifeCalendarPlugin extends Plugin {
       id: "add-entry",
       name: t("cmdAddEntry"),
       callback: () => {
-        new AddEntryModal(this.app, moment().format("YYYY-MM-DD"), async (date, text) => {
+        new AddEntryModal(this.app, todayKey(), async (date, text) => {
           try {
             const path = await this.journal.addEntry(date, text);
             new Notice(t("entryAdded", { path }));
