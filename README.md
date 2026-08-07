@@ -1,4 +1,4 @@
-# Life Calendar
+# My Life Calendar
 
 A life-in-weeks view for Obsidian: your whole life as a grid of heart-shaped cells (52 columns = weeks of the year, each row = one year), with a built-in journal, events, and one-click export for the **Life Calendar** Android app.
 
@@ -16,7 +16,7 @@ A life-in-weeks view for Obsidian: your whole life as a grid of heart-shaped cel
 >
 > 1. Download the latest release or build from source (see below).
 > 2. Copy the folder with `main.js`, `manifest.json`, `styles.css` into your vault:
->    `<YourVault>/.obsidian/plugins/obsidian-life-calendar/`
+>    `<YourVault>/.obsidian/plugins/my-life-calendar/`
 > 3. In Obsidian: **Settings → Community plugins → Reload plugins** (or restart Obsidian), then enable **Life Calendar**.
 
 ## First launch (onboarding)
@@ -40,10 +40,10 @@ All paths are configurable in the plugin settings.
 - **Events**: add / edit / delete (date, title, color) via the Events window or the command palette. Events show as colored hearts on the grid.
 - **📤 Export for Life Calendar Android**: builds `Life Calendar/backup.json` in the exact JSON format the Android app's BackupManager imports (`version`, `birthDate`, `lifespanYears`, `entries`, `events`). Then import the file in the Android app (Profile → backup).
 - **Commands** (Command palette):
-  - `Life Calendar: Open Life Calendar`
-  - `Life Calendar: Add entry to journal`
-  - `Life Calendar: Events (add / edit / delete)`
-  - `Life Calendar: Export for Life Calendar Android`
+  - `My Life Calendar: Open Life Calendar`
+  - `My Life Calendar: Add entry to journal`
+  - `My Life Calendar: Events (add / edit / delete)`
+  - `My Life Calendar: Export for Life Calendar Android`
 
 ## Settings
 

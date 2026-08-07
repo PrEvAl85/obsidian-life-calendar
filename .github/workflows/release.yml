@@ -6,7 +6,7 @@ on:
       - "*"
 
 env:
-  PLUGIN_NAME: obsidian-life-calendar
+  PLUGIN_NAME: my-life-calendar
 
 permissions:
   contents: write

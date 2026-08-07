@@ -1,4 +1,4 @@
-# Life Calendar
+# My Life Calendar
 
 Вид «Жизнь в неделях» для Obsidian: вся жизнь в виде сетки сердечек (52 колонки = недели года, каждая строка = год), со встроенным дневником, событиями и экспортом в один клик для приложения **Life Calendar** (Android).
 
@@ -16,7 +16,7 @@
 >
 > 1. Скачайте свежий релиз или соберите из исходников (см. ниже).
 > 2. Скопируйте папку с `main.js`, `manifest.json`, `styles.css` в ваш vault:
->    `<ВашVault>/.obsidian/plugins/obsidian-life-calendar/`
+>    `<ВашVault>/.obsidian/plugins/my-life-calendar/`
 > 3. В Obsidian: **Настройки → Сторонние плагины → Обновить плагины** (или перезапустить Obsidian), затем включить **Life Calendar**.
 
 ## Первый запуск (онбординг)
@@ -40,10 +40,10 @@
 - **События**: добавление / редактирование / удаление (дата, название, цвет) через окно «События» или палитру команд. События отображаются на сетке цветными сердечками.
 - **📤 Экспорт для Life Calendar Android**: создаёт `Life Calendar/backup.json` в том же JSON-формате, который импортирует приложение Android (`version`, `birthDate`, `lifespanYears`, `entries`, `events`). Дальше файл импортируется в приложении (Профиль → бэкап).
 - **Команды** (палитра команд):
-  - `Life Calendar: Открыть Life Calendar`
-  - `Life Calendar: Добавить запись в дневник`
-  - `Life Calendar: События (добавить / редактировать / удалить)`
-  - `Life Calendar: Экспорт для Life Calendar Android`
+  - `My Life Calendar: Открыть Life Calendar`
+  - `My Life Calendar: Добавить запись в дневник`
+  - `My Life Calendar: События (добавить / редактировать / удалить)`
+  - `My Life Calendar: Экспорт для Life Calendar Android`
 
 ## Настройки
 
