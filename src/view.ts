@@ -1,4 +1,4 @@
-import { ItemView, WorkspaceLeaf, moment, Notice } from "obsidian";
+import { ItemView, WorkspaceLeaf, TFile, moment, Notice } from "obsidian";
 import LifeCalendarPlugin from "./main";
 import { HEART_COLORS, RING_COLORS, JournalEntry, LifeEvent, WeekStyle } from "./types";
 import { keyToDmy, dmyToKey, weekdayName, weekKeyOf } from "./util";
@@ -449,6 +449,20 @@ export class LifeCalendarView extends ItemView {
           },
           deleteEvent: async (ev) => {
             await this.plugin.events.remove(ev.date, ev.title);
+          },
+          openDayNotes: async (paths) => {
+            for (const p of paths) {
+              const f = this.app.vault.getAbstractFileByPath(p) as TFile | null;
+              if (f) await this.app.workspace.getLeaf(true).openFile(f);
+            }
+          },
+          openWeekNote: async (entries) => {
+            const file = await this.plugin.week.getOrCreateWeek(mk, entries);
+            if (file) {
+              await this.app.workspace.getLeaf(false).openFile(file);
+            } else {
+              new Notice("В этой неделе нет записей");
+            }
           },
         },
       ).open();

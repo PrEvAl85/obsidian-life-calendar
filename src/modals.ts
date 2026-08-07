@@ -243,6 +243,8 @@ export interface WeekHandlers {
   addEvent: (ev: LifeEvent) => Promise<void>;
   updateEvent: (old: LifeEvent, next: LifeEvent) => Promise<void>;
   deleteEvent: (ev: LifeEvent) => Promise<void>;
+  openDayNotes: (paths: string[]) => Promise<void>;
+  openWeekNote: (entries: JournalEntry[]) => Promise<void>;
 }
 
 /** Окно недели: записи дневника и события недели, добавляемые/редактируемые независимо. */
@@ -382,7 +384,23 @@ export class WeekModal extends Modal {
     }
     if (!this.events.length) sList.createDiv({ cls: "lc-week-empty", text: "Событий нет" });
 
-    const row = contentEl.createDiv({ cls: "lc-modal-row" });
+    const row = contentEl.createDiv({ cls: "lc-modal-row lc-modal-row-between" });
+    const left = row.createDiv({ cls: "lc-modal-row-left" });
+    const dayBtn = left.createEl("button", { cls: "lc-modal-cancel", text: "📂 Открыть заметки по датам" });
+    dayBtn.type = "button";
+    dayBtn.addEventListener("click", async () => {
+      const paths = [...new Set(this.entries.map((e) => e.path))];
+      if (!paths.length) {
+        new Notice("В этой неделе нет записей");
+        return;
+      }
+      await this.handlers.openDayNotes(paths);
+    });
+    const weekBtn = left.createEl("button", { cls: "lc-modal-cancel", text: "📄 Открыть недельную заметку" });
+    weekBtn.type = "button";
+    weekBtn.addEventListener("click", async () => {
+      await this.handlers.openWeekNote(this.entries);
+    });
     row.createEl("button", { cls: "lc-modal-cancel", text: "Закрыть" }).addEventListener("click", () => this.close());
   }
 

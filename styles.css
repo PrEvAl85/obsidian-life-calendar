@@ -234,6 +234,15 @@
   gap: 8px;
   justify-content: flex-end;
 }
+.lc-modal-row-between {
+  justify-content: space-between;
+  flex-wrap: wrap;
+}
+.lc-modal-row-left {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
 .lc-modal-cancel {
   font-family: inherit;
   font-size: 13px;
