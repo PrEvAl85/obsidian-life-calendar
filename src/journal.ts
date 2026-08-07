@@ -52,7 +52,7 @@ export class JournalStore {
     const out: JournalEntry[] = [];
     for (let i = 0; i < blocks.length; i++) {
       const text = cleanNoteText(blocks[i]);
-      if (text) out.push({ date: dateKey, text, path, index: i });
+      if (text) out.push({ date: dateKey, text, path, index: i, blocks: blocks.length });
     }
     return out;
   }
@@ -127,6 +127,25 @@ export class JournalStore {
         return true;
       }
     }
+    await this.app.vault.modify(file, rebuildDay(header, blocks));
+    return true;
+  }
+
+  /**
+   * Перестановка записи внутри дня: меняет местами блоки index и index+dir
+   * (dir = -1 вверх, +1 вниз). Возвращает true, если перестановка выполнена.
+   */
+  async moveEntry(dateKey: string, index: number, dir: -1 | 1): Promise<boolean> {
+    const path = this.pathFor(dateKey);
+    const file = this.app.vault.getAbstractFileByPath(path) as TFile | null;
+    if (!file) return false;
+    const content = await this.app.vault.read(file);
+    const { header, blocks } = splitDayFile(content);
+    const target = index + dir;
+    if (target < 0 || target >= blocks.length) return false;
+    const tmp = blocks[index];
+    blocks[index] = blocks[target];
+    blocks[target] = tmp;
     await this.app.vault.modify(file, rebuildDay(header, blocks));
     return true;
   }

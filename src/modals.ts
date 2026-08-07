@@ -239,6 +239,7 @@ export interface WeekHandlers {
   addEntry: (date: string, text: string) => Promise<void>;
   updateEntry: (oldDate: string, index: number, newDate: string, text: string) => Promise<void>;
   deleteEntry: (date: string, index: number) => Promise<void>;
+  moveEntry: (date: string, index: number, dir: -1 | 1) => Promise<void>;
   addEvent: (ev: LifeEvent) => Promise<void>;
   updateEvent: (old: LifeEvent, next: LifeEvent) => Promise<void>;
   deleteEvent: (ev: LifeEvent) => Promise<void>;
@@ -294,11 +295,30 @@ export class WeekModal extends Modal {
       }).open();
     });
     const eList = entriesBlock.createDiv({ cls: "lc-week-list" });
-    for (const e of this.entries) {
+    const sortedEntries = [...this.entries].sort(
+      (a, b) => a.date.localeCompare(b.date) || a.index - b.index,
+    );
+    for (const e of sortedEntries) {
       const item = eList.createDiv({ cls: "lc-week-item" });
       const head = item.createDiv({ cls: "lc-week-item-head" });
       head.createSpan({ cls: "lc-week-item-date", text: keyToDmy(e.date) + " (" + weekdayName(e.date) + ")" });
       const btns = head.createDiv({ cls: "lc-week-item-btns" });
+      if (e.index > 0) {
+        const up = btns.createEl("button", { cls: "lc-week-btn", text: "▲" });
+        up.title = "Выше";
+        up.addEventListener("click", async () => {
+          await this.handlers.moveEntry(e.date, e.index, -1);
+          await this.reload();
+        });
+      }
+      if (e.index < e.blocks - 1) {
+        const down = btns.createEl("button", { cls: "lc-week-btn", text: "▼" });
+        down.title = "Ниже";
+        down.addEventListener("click", async () => {
+          await this.handlers.moveEntry(e.date, e.index, 1);
+          await this.reload();
+        });
+      }
       const editBtn = btns.createEl("button", { cls: "lc-week-btn", text: "✏️" });
       editBtn.title = "Редактировать";
       editBtn.addEventListener("click", async () => {

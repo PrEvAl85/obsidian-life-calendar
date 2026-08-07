@@ -438,6 +438,9 @@ export class LifeCalendarView extends ItemView {
           deleteEntry: async (date, index) => {
             await this.plugin.journal.deleteEntry(date, index);
           },
+          moveEntry: async (date, index, dir) => {
+            await this.plugin.journal.moveEntry(date, index, dir);
+          },
           addEvent: async (ev) => {
             await this.plugin.events.add(ev);
           },

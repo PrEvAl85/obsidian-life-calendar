@@ -19,6 +19,8 @@ export interface JournalEntry {
   path: string;
   /** Индекс записи внутри файла дня (блоки, разделённые `---`). */
   index: number;
+  /** Общее число блоков в файле дня (для кнопок сортировки ▲/▼). */
+  blocks: number;
 }
 
 export interface LifeEvent {
