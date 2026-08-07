@@ -1,8 +1,8 @@
 import { ItemView, WorkspaceLeaf, moment, Notice } from "obsidian";
 import LifeCalendarPlugin from "./main";
 import { HEART_COLORS, RING_COLORS, JournalEntry, LifeEvent, WeekStyle } from "./types";
-import { keyToDmy, dmyToKey, weekdayName } from "./util";
-import { AddEntryModal, EventsModal } from "./modals";
+import { keyToDmy, dmyToKey, weekdayName, weekKeyOf } from "./util";
+import { AddEntryModal, EventsModal, WeekModal } from "./modals";
 
 export const VIEW_TYPE_LIFE_CALENDAR = "life-calendar-view";
 
@@ -407,7 +407,7 @@ export class LifeCalendarView extends ItemView {
       }
     });
 
-    grid.addEventListener("click", async (evt) => {
+    grid.addEventListener("click", (evt) => {
       const heart = (evt.target as HTMLElement).closest(".heart") as HTMLElement | null;
       if (!heart) return;
       evt.preventDefault();
@@ -415,17 +415,40 @@ export class LifeCalendarView extends ItemView {
       const name = heart.getAttribute("data-week");
       if (!name) return;
       const mk = dmyToKey(name);
-      const entries = await this.plugin.journal.getWeek(mk);
-      if (!entries.length) {
-        new Notice("В этой неделе нет записей");
-        return;
-      }
-      const file = await this.plugin.week.getOrCreateWeek(mk, entries);
-      if (file) {
-        await this.app.workspace.getLeaf(false).openFile(file);
-      } else {
-        new Notice("Life Calendar: не удалось создать недельную заметку");
-      }
+      new WeekModal(
+        this.app,
+        mk,
+        async () => {
+          const [entries, events] = await Promise.all([
+            this.plugin.journal.getWeek(mk),
+            this.plugin.events.read(),
+          ]);
+          return {
+            entries,
+            events: events.filter((ev) => weekKeyOf(ev.date) === mk),
+          };
+        },
+        {
+          addEntry: async (date, text) => {
+            await this.plugin.journal.addEntry(date, text);
+          },
+          updateEntry: async (oldDate, index, newDate, text) => {
+            await this.plugin.journal.updateEntry(oldDate, index, newDate, text);
+          },
+          deleteEntry: async (date, index) => {
+            await this.plugin.journal.deleteEntry(date, index);
+          },
+          addEvent: async (ev) => {
+            await this.plugin.events.add(ev);
+          },
+          updateEvent: async (old, next) => {
+            await this.plugin.events.update(old, next);
+          },
+          deleteEvent: async (ev) => {
+            await this.plugin.events.remove(ev.date, ev.title);
+          },
+        },
+      ).open();
     });
   }
 }

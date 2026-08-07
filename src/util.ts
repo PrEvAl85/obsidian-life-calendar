@@ -14,6 +14,11 @@ export function mondayKeyOf(mom: moment.Moment): string {
   return mom.clone().subtract(wd, "days").format("YYYY-MM-DD");
 }
 
+/** Ключ недели (понедельник YYYY-MM-DD) по ключу даты. */
+export function weekKeyOf(dateKey: string): string {
+  return mondayKeyOf(moment(dateKey, "YYYY-MM-DD"));
+}
+
 /** DD.MM.YYYY (имя файла) -> YYYY-MM-DD (ключ). */
 export function dmyToKey(dmy: string): string {
   const p = dmy.split(".");

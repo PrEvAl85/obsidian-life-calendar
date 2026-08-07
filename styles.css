@@ -307,3 +307,82 @@
   justify-content: flex-end;
   margin-top: 16px;
 }
+
+/* Окно недели */
+.lc-week-block {
+  margin-bottom: 16px;
+}
+.lc-week-block-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 6px;
+}
+.lc-week-block-title {
+  font-size: 13px;
+  font-weight: 600;
+}
+.lc-week-add {
+  font-size: 12px;
+  padding: 3px 10px;
+}
+.lc-week-list {
+  max-height: 220px;
+  overflow: auto;
+  border: 1px solid var(--background-modifier-border);
+  border-radius: 6px;
+  padding: 4px;
+}
+.lc-week-item {
+  padding: 6px;
+  border-radius: 4px;
+}
+.lc-week-item + .lc-week-item {
+  border-top: 1px solid var(--background-modifier-border);
+}
+.lc-week-item:hover {
+  background: var(--background-modifier-hover);
+}
+.lc-week-item-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.lc-week-item-date {
+  font-size: 12px;
+  color: var(--text-muted);
+  flex-shrink: 0;
+}
+.lc-week-item-title {
+  flex: 1;
+  font-size: 13px;
+}
+.lc-week-item-btns {
+  display: flex;
+  gap: 2px;
+  flex-shrink: 0;
+  margin-left: auto;
+}
+.lc-week-btn {
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  font-size: 13px;
+  padding: 0 4px;
+  opacity: 0.7;
+}
+.lc-week-btn:hover {
+  opacity: 1;
+}
+.lc-week-item-text {
+  font-size: 13px;
+  margin-top: 4px;
+  white-space: pre-wrap;
+  color: var(--text-normal);
+}
+.lc-week-empty {
+  color: var(--text-muted);
+  font-size: 13px;
+  padding: 8px 6px;
+}

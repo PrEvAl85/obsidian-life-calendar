@@ -31,12 +31,22 @@ export class WeekStore {
   buildWeek(weekKey: string, entries: JournalEntry[]): string {
     const lines: string[] = [`# ${keyToDmy(weekKey)} — неделя`, ""];
     const sources = new Set<string>();
-    if (entries.length) {
+    const byDate = new Map<string, JournalEntry[]>();
+    for (const j of entries) {
+      if (!byDate.has(j.date)) byDate.set(j.date, []);
+      byDate.get(j.date)!.push(j);
+      sources.add(j.path);
+    }
+    const dates = [...byDate.keys()].sort();
+    if (dates.length) {
       lines.push("## Журнал", "");
-      for (const j of entries) {
-        lines.push(`### ${keyToDmy(j.date)} (${weekdayName(j.date)})`, "");
-        lines.push(j.text.trim(), "");
-        sources.add(j.path);
+      for (const date of dates) {
+        lines.push(`### ${keyToDmy(date)} (${weekdayName(date)})`, "");
+        const list = byDate.get(date)!;
+        for (let i = 0; i < list.length; i++) {
+          lines.push(list[i].text.trim(), "");
+          if (i < list.length - 1) lines.push("---", "");
+        }
       }
     }
     lines.push("## Источник", "");

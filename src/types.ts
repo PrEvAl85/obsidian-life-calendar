@@ -17,6 +17,8 @@ export interface JournalEntry {
   date: string;
   text: string;
   path: string;
+  /** Индекс записи внутри файла дня (блоки, разделённые `---`). */
+  index: number;
 }
 
 export interface LifeEvent {
