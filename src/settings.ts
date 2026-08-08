@@ -9,6 +9,8 @@ const SUPPORT_LINKS = [
   { name: "🍩 DonationAlerts", url: "https://www.donationalerts.com/r/photowithoutstudio" },
 ];
 
+const CONTACT_LINKS = [{ nameKey: "contactTelegram" as const, url: "https://t.me/GraphiCoreOne" }];
+
 const CRYPTO_ADDRESSES: { key: keyof Dict; address: string }[] = [
   { key: "cryptoUSDT", address: "TRcWS42MhyFRGdGSc6LqTH8CdTy6pLUMn6" },
   { key: "cryptoUSDTBEP", address: "0x0905134db34d8d54abf5b60a55406821ed7b8de0" },
@@ -123,9 +125,23 @@ export class LifeCalendarSettingTab extends PluginSettingTab {
       })),
     ];
 
+    const contacts: SettingGroupItem[] = [
+      { name: t("settingsContactsDesc") },
+      ...CONTACT_LINKS.map<SettingGroupItem>((link) => ({
+        name: t(link.nameKey),
+        desc: link.url,
+        render: (setting: Setting) => {
+          setting.addButton((btn) =>
+            btn.setButtonText(t("open")).onClick(() => window.open(link.url, "_blank")),
+          );
+        },
+      })),
+    ];
+
     return [
       { type: "group", heading: "My Life Calendar", items: main },
       { type: "group", heading: t("settingsSupport"), items: support },
+      { type: "group", heading: t("settingsContacts"), items: contacts },
     ];
   }
 

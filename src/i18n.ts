@@ -123,6 +123,9 @@ const ru = {
   copy: "Копировать",
   copied: "Скопировано: {value}",
   open: "Открыть",
+  settingsContacts: "Контакты",
+  settingsContactsDesc: "Вопросы и пожелания — пишите в Telegram:",
+  contactTelegram: "Telegram (GraphiCoreOne)",
 };
 
 export type Dict = typeof ru;
@@ -236,6 +239,9 @@ const en: Dict = {
   copy: "Copy",
   copied: "Copied: {value}",
   open: "Open",
+  settingsContacts: "Contacts",
+  settingsContactsDesc: "Questions and suggestions — write to Telegram:",
+  contactTelegram: "Telegram (GraphiCoreOne)",
 };
 
 const translations: Record<Language, Dict> = { ru, en };
