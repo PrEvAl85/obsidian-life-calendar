@@ -523,6 +523,7 @@ export class EntryEditModal extends Modal {
 /** Модалка импорта резервной копии: выбор JSON-файла + опции. */
 export class ImportModal extends Modal {
   private filePath: string;
+  private pickedContent: string | null = null;
 
   constructor(
     app: App,
@@ -547,19 +548,38 @@ export class ImportModal extends Modal {
       attr: { type: "text", placeholder: this.filePath || "backup.json" },
     });
     pathInput.value = this.filePath;
-    pathInput.addEventListener("change", () => {
+    pathInput.addEventListener("input", () => {
       this.filePath = pathInput.value.trim();
+      this.pickedContent = null;
+      pathInput.disabled = false;
     });
+
+    const fileInput = pathRow.createEl("input", {
+      attr: { type: "file", accept: ".json,application/json" },
+    });
+    fileInput.style.display = "none";
+
     const browse = pathRow.createEl("button", { cls: "lc-modal-cancel", text: t("importBrowse") });
     browse.type = "button";
     browse.addEventListener("click", () => {
-      void (async () => {
-        const picked = await this.pickFile();
-        if (picked) {
-          this.filePath = picked.path;
-          pathInput.value = picked.path;
-        }
-      })();
+      fileInput.value = "";
+      fileInput.click();
+    });
+    fileInput.addEventListener("change", () => {
+      const f = fileInput.files && fileInput.files[0];
+      if (!f) return;
+      const reader = new FileReader();
+      reader.onload = () => {
+        this.pickedContent = String(reader.result || "");
+        this.filePath = "";
+        pathInput.value = f.name;
+        pathInput.disabled = true;
+        pathInput.title = this.pickedContent.length + " chars";
+      };
+      reader.onerror = () => {
+        new Notice(t("importError", { error: "FileReader" }));
+      };
+      reader.readAsText(f);
     });
 
     const metaWrap = contentEl.createDiv({ cls: "lc-modal-field" });
@@ -573,20 +593,25 @@ export class ImportModal extends Modal {
     const runBtn = row.createEl("button", { cls: "mod-cta", text: t("importBtn") });
 
     const doImport = async () => {
-      const path = this.filePath;
-      if (!path) {
-        new Notice(t("importFileNotFound"));
-        return;
-      }
-      const file = this.app.vault.getAbstractFileByPath(path) as TFile | null;
-      if (!(file instanceof TFile)) {
-        new Notice(t("importFileNotFound"));
-        return;
+      let content: string;
+      if (this.pickedContent !== null) {
+        content = this.pickedContent;
+      } else {
+        const path = this.filePath;
+        if (!path) {
+          new Notice(t("importFileNotFound"));
+          return;
+        }
+        const file = this.app.vault.getAbstractFileByPath(path) as TFile | null;
+        if (!(file instanceof TFile)) {
+          new Notice(t("importFileNotFound"));
+          return;
+        }
+        content = await this.app.vault.read(file);
       }
       runBtn.disabled = true;
       browse.disabled = true;
       try {
-        const content = await this.app.vault.read(file);
         const result = await this.onImport(content, metaBox.checked);
         if (result.entriesAdded + result.eventsAdded === 0) {
           new Notice(t("importEmpty"), 6000);
@@ -613,21 +638,6 @@ export class ImportModal extends Modal {
       }
     };
     runBtn.addEventListener("click", () => void doImport());
-  }
-
-  /** Выбор файла через Obsidian picker (заглушка — типы не входят в obsidian.d.ts). */
-  private async pickFile(): Promise<TFile | null> {
-    try {
-      const requireFn = (this.app as unknown as { require?: (name: string) => unknown }).require;
-      if (typeof requireFn !== "function") return null;
-      const picker = requireFn("picker") as { getFile?: () => Promise<TFile | null> };
-      if (typeof picker?.getFile !== "function") return null;
-      const file = await picker.getFile();
-      return file instanceof TFile ? file : null;
-    } catch {
-      // Пользователь отменил выбор или picker недоступен
-      return null;
-    }
   }
 
   onClose(): void {

@@ -1,6 +1,6 @@
 {
   "name": "my-life-calendar",
-  "version": "1.3.5",
+  "version": "1.3.6",
   "description": "Life Calendar for Obsidian — a life in weeks grid with journal entries, events and JSON backup (import/export) compatible with the Life Calendar Android app.",
   "main": "main.js",
   "scripts": {
