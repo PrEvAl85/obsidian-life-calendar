@@ -1,6 +1,6 @@
 # My Life Calendar
 
-A life-in-weeks view for Obsidian: your whole life as a grid of heart-shaped cells (52 columns = weeks of the year, each row = one year), with a built-in journal, events, and one-click export for the **Life Calendar** Android app.
+A life-in-weeks view for Obsidian: your whole life as a grid of heart-shaped cells (52 columns = weeks of the year, each row = one year), with a built-in journal, events, and JSON backup (import/export) compatible with the **Life Calendar** Android app.
 
 > Inspired by the "Life in Weeks" idea (WaitButWhy). Visual style matches the Life Calendar Android app: lived weeks are red hearts ♥, future weeks are grey ♡, birthday weeks are green, events are hearts in their own color, and weeks that have journal entries get a yellow dot.
 
@@ -26,7 +26,7 @@ When you enable the plugin for the first time, it asks for your **date of birth*
 - `Life Calendar/Journal/` — daily journal entries, one file per day (`DD.MM.YYYY.md`);
 - `Life Calendar/Weekly/` — weekly aggregator notes (built when you click a week);
 - `Life Calendar/Events.md` — events in YAML-frontmatter (`date`, `color`, `title`);
-- `Life Calendar/backup.json` — export file for the Android app.
+- `Life Calendar/backup.json` — JSON backup file (import/export).
 
 All paths are configurable in the plugin settings.
 
@@ -38,12 +38,14 @@ All paths are configurable in the plugin settings.
 - **Click a week**: opens (or creates) the weekly aggregator note built from that week's journal files. Manual sections you added are preserved when the note is rebuilt.
 - **➕ Add journal entry**: date + text → appends to the day's file in `Life Calendar/Journal/`.
 - **Events**: add / edit / delete (date, title, color) via the Events window or the command palette. Events show as colored hearts on the grid.
-- **📤 Export for Life Calendar Android**: builds `Life Calendar/backup.json` in the exact JSON format the Android app's BackupManager imports (`version`, `birthDate`, `lifespanYears`, `entries`, `events`). Then import the file in the Android app (Profile → backup).
+- **📤 Export backup**: builds `Life Calendar/backup.json` in the exact JSON format the Android app's BackupManager imports (`version`, `birthDate`, `lifespanYears`, `entries`, `events`). Import the file into the Android app (Profile → backup) or into another Obsidian vault.
+- **📥 Import backup**: restores a backup file into this vault — journal entries and events are merged without duplicates. Optionally applies the birth date and lifespan from the file (turned on by default when no birth date is set yet). Use it to move your calendar to a new Obsidian account or restore from an Android export.
 - **Commands** (Command palette):
   - `My Life Calendar: Open Life Calendar`
   - `My Life Calendar: Add entry to journal`
   - `My Life Calendar: Events (add / edit / delete)`
-  - `My Life Calendar: Export for Life Calendar Android`
+  - `My Life Calendar: Export backup (JSON)`
+  - `My Life Calendar: Import from backup (JSON)`
 
 ## Settings
 
@@ -82,6 +84,10 @@ The app is free and without ads, developed in my free time. You can support it b
 - USDT (BEP20): `0x0905134db34d8d54abf5b60a55406821ed7b8de0`
 - BTC: `17hDrZL62DBpTjK6xNCGFFG682jN9PiVF1`
 - TON: `UQCzoPJlYLHSoFGmRyh_-_ox1nOMCzx3LwG79xPR5pbjs3Aq`
+
+## Contacts
+
+- **Telegram:** [GraphiCoreOne](https://t.me/GraphiCoreOne) — questions, feedback and ideas.
 
 ## License
 

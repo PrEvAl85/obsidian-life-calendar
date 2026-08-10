@@ -4,10 +4,11 @@ import { JournalStore } from "./journal";
 import { WeekStore } from "./weekly";
 import { EventsStore } from "./events";
 import { ExportManager } from "./export";
+import { ImportManager, ImportResult } from "./import";
 import { BirthDateModal, setupStructure } from "./onboarding";
 import { LifeCalendarSettingTab } from "./settings";
 import { LifeCalendarView, VIEW_TYPE_LIFE_CALENDAR } from "./view";
-import { AddEntryModal, EventsModal } from "./modals";
+import { AddEntryModal, EventsModal, ImportModal } from "./modals";
 import { resolveLanguage, setLanguage, t } from "./i18n";
 import { todayKey } from "./date";
 
@@ -17,6 +18,7 @@ export default class LifeCalendarPlugin extends Plugin {
   week!: WeekStore;
   events!: EventsStore;
   export!: ExportManager;
+  import!: ImportManager;
 
   async onload(): Promise<void> {
     await this.loadSettings();
@@ -26,6 +28,7 @@ export default class LifeCalendarPlugin extends Plugin {
     this.week = new WeekStore(this.app, () => this.settings);
     this.events = new EventsStore(this.app, () => this.settings);
     this.export = new ExportManager(this.app, () => this.settings);
+    this.import = new ImportManager(this.app, () => this.settings, () => this.saveSettings(), this.journal, this.events);
 
     // Структура папок/файлов — идемпотентно при каждой загрузке (даже если папки удалили)
     void setupStructure(this.app, this.settings);
@@ -62,9 +65,21 @@ export default class LifeCalendarPlugin extends Plugin {
       },
     });
     this.addCommand({
-      id: "export-android",
+      id: "export-backup",
       name: t("cmdExport"),
       callback: () => this.exportForAndroid(),
+    });
+    this.addCommand({
+      id: "import-backup",
+      name: t("cmdImport"),
+      callback: () => {
+        new ImportModal(
+          this.app,
+          this.settings.exportFile,
+          !this.settings.birthDate,
+          (content, applyMeta) => this.importFromJson(content, applyMeta),
+        ).open();
+      },
     });
 
     this.addSettingTab(new LifeCalendarSettingTab(this.app, this));
@@ -147,5 +162,13 @@ export default class LifeCalendarPlugin extends Plugin {
       console.error("Life Calendar: export", err);
       new Notice(t("exportError", { error: err instanceof Error ? err.message : String(err) }));
     }
+  }
+
+  /** Импорт из содержимого JSON-файла резервной копии. */
+  async importFromJson(content: string, applyMeta: boolean): Promise<ImportResult> {
+    const data = this.import.parse(content);
+    const result = await this.import.importBackup(data, applyMeta);
+    this.refreshViews();
+    return result;
   }
 }

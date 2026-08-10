@@ -3,7 +3,7 @@ import LifeCalendarPlugin from "./main";
 import { HEART_COLORS, RING_COLORS, JournalEntry, LifeEvent, WeekStyle } from "./types";
 import { keyToDmy, dmyToKey, weekdayName, weekKeyOf } from "./util";
 import { addDays, addYears, diffDays, diffYears, formatKey, isValidKey, mondayKeyOf, monthDayOf, todayKey, yearOf } from "./date";
-import { AddEntryModal, EventsModal, WeekModal } from "./modals";
+import { AddEntryModal, EventsModal, ImportModal, WeekModal } from "./modals";
 import { t } from "./i18n";
 
 export const VIEW_TYPE_LIFE_CALENDAR = "life-calendar-view";
@@ -97,6 +97,8 @@ export class LifeCalendarView extends ItemView {
     evBtn.type = "button";
     const expBtn = tool.createEl("button", { cls: "add-btn", text: t("exportBtn") });
     expBtn.type = "button";
+    const impBtn = tool.createEl("button", { cls: "add-btn", text: t("importBtn") });
+    impBtn.type = "button";
 
     const legend = container.createDiv({ cls: "legend" });
     legend.textContent = t("legend", {
@@ -207,7 +209,7 @@ export class LifeCalendarView extends ItemView {
     }
 
     this.attachTooltip(grid, srcCache);
-    this.attachClicks(grid, addBtn, evBtn, expBtn);
+    this.attachClicks(grid, addBtn, evBtn, expBtn, impBtn);
   }
 
   private attachTooltip(grid: HTMLElement, srcCache: Map<string, WeekSource>): void {
@@ -366,6 +368,7 @@ export class LifeCalendarView extends ItemView {
     addBtn: HTMLElement,
     evBtn: HTMLElement,
     expBtn: HTMLElement,
+    impBtn: HTMLElement,
   ): void {
     const today = todayKey();
 
@@ -398,6 +401,15 @@ export class LifeCalendarView extends ItemView {
           new Notice(t("exportError", { error: err instanceof Error ? err.message : String(err) }));
         }
       })();
+    });
+
+    impBtn.addEventListener("click", () => {
+      new ImportModal(
+        this.app,
+        this.plugin.settings.exportFile,
+        !this.plugin.settings.birthDate,
+        (content, applyMeta) => this.plugin.importFromJson(content, applyMeta),
+      ).open();
     });
 
     grid.addEventListener("click", (evt) => {

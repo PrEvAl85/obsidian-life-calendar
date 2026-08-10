@@ -1,8 +1,9 @@
-import { App, Modal, Notice } from "obsidian";
+import { App, Modal, Notice, TFile } from "obsidian";
 import { addDays, formatKey, todayKey } from "./date";
 import { HEART_COLORS, JournalEntry, LifeEvent } from "./types";
 import { keyToDmy, weekdayName } from "./util";
 import { t } from "./i18n";
+import { ImportResult, InvalidBackupError } from "./import";
 
 /** Модалка добавления записи в дневник. */
 export class AddEntryModal extends Modal {
@@ -516,5 +517,120 @@ export class EntryEditModal extends Modal {
       this.resolveFn(this.result);
       this.resolveFn = null;
     }
+  }
+}
+
+/** Модалка импорта резервной копии: выбор JSON-файла + опции. */
+export class ImportModal extends Modal {
+  private filePath: string;
+
+  constructor(
+    app: App,
+    defaultPath: string,
+    private applyMetaDefault: boolean,
+    private onImport: (content: string, applyMeta: boolean) => Promise<ImportResult>,
+  ) {
+    super(app);
+    this.filePath = defaultPath;
+  }
+
+  onOpen(): void {
+    const { contentEl } = this;
+    contentEl.addClass("lc-modal");
+    contentEl.createEl("h3", { text: t("importModalTitle") });
+
+    const pathWrap = contentEl.createDiv({ cls: "lc-modal-field" });
+    pathWrap.createEl("label", { text: t("importFileLabel") });
+    const pathRow = pathWrap.createDiv({ cls: "lc-modal-path-row" });
+    const pathInput = pathRow.createEl("input", {
+      cls: "lc-modal-text",
+      attr: { type: "text", placeholder: this.filePath || "backup.json" },
+    });
+    pathInput.value = this.filePath;
+    pathInput.addEventListener("change", () => {
+      this.filePath = pathInput.value.trim();
+    });
+    const browse = pathRow.createEl("button", { cls: "lc-modal-cancel", text: t("importBrowse") });
+    browse.type = "button";
+    browse.addEventListener("click", () => {
+      void (async () => {
+        const picked = await this.pickFile();
+        if (picked) {
+          this.filePath = picked.path;
+          pathInput.value = picked.path;
+        }
+      })();
+    });
+
+    const metaWrap = contentEl.createDiv({ cls: "lc-modal-field" });
+    const metaLabel = metaWrap.createEl("label", { text: t("importApplyMeta") });
+    const metaBox = metaWrap.createEl("input", { type: "checkbox" });
+    metaLabel.prepend(metaBox);
+    metaBox.checked = this.applyMetaDefault;
+
+    const row = contentEl.createDiv({ cls: "lc-modal-row" });
+    row.createEl("button", { cls: "lc-modal-cancel", text: t("cancel") }).addEventListener("click", () => this.close());
+    const runBtn = row.createEl("button", { cls: "mod-cta", text: t("importBtn") });
+
+    const doImport = async () => {
+      const path = this.filePath;
+      if (!path) {
+        new Notice(t("importFileNotFound"));
+        return;
+      }
+      const file = this.app.vault.getAbstractFileByPath(path) as TFile | null;
+      if (!(file instanceof TFile)) {
+        new Notice(t("importFileNotFound"));
+        return;
+      }
+      runBtn.disabled = true;
+      browse.disabled = true;
+      try {
+        const content = await this.app.vault.read(file);
+        const result = await this.onImport(content, metaBox.checked);
+        if (result.entriesAdded + result.eventsAdded === 0) {
+          new Notice(t("importEmpty"), 6000);
+        } else {
+          new Notice(
+            t("importSummary", {
+              entries: result.entriesAdded,
+              events: result.eventsAdded,
+              skipped: result.entriesSkipped + result.eventsSkipped,
+            }),
+            6000,
+          );
+        }
+        this.close();
+      } catch (err: unknown) {
+        if (err instanceof InvalidBackupError) {
+          new Notice(t("importInvalidBackup"));
+        } else {
+          console.error("Life Calendar: import", err);
+          new Notice(t("importError", { error: err instanceof Error ? err.message : String(err) }));
+        }
+        runBtn.disabled = false;
+        browse.disabled = false;
+      }
+    };
+    runBtn.addEventListener("click", () => void doImport());
+  }
+
+  /** Выбор файла через Obsidian picker (заглушка — типы не входят в obsidian.d.ts). */
+  private async pickFile(): Promise<TFile | null> {
+    try {
+      const requireFn = (this.app as unknown as { require?: (name: string) => unknown }).require;
+      if (typeof requireFn !== "function") return null;
+      const picker = requireFn("picker") as { getFile?: () => Promise<TFile | null> };
+      if (typeof picker?.getFile !== "function") return null;
+      const file = await picker.getFile();
+      return file instanceof TFile ? file : null;
+    } catch {
+      // Пользователь отменил выбор или picker недоступен
+      return null;
+    }
+  }
+
+  onClose(): void {
+    this.contentEl.empty();
   }
 }

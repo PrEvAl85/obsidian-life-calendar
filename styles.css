@@ -237,6 +237,15 @@
   gap: 8px;
   justify-content: flex-end;
 }
+.lc-modal-path-row {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+.lc-modal-path-row input {
+  flex: 1;
+  min-width: 0;
+}
 .lc-modal-row-between {
   justify-content: space-between;
   flex-wrap: wrap;
