@@ -9,7 +9,7 @@ A life-in-weeks view for Obsidian: your whole life as a grid of heart-shaped cel
 ### From the Community plugins catalog
 
 1. In Obsidian: **Settings → Community plugins → Browse**.
-2. Search for **Life Calendar** and install it.
+2. Search for **My Life Calendar** and install it.
 3. Enable the plugin and turn off **Restricted mode** if prompted.
 
 > Manual installation (if the plugin is not yet visible in the catalog — e.g. while the submission is in review):
