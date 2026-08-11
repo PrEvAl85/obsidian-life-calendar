@@ -38,14 +38,48 @@ All paths are configurable in the plugin settings.
 - **Click a week**: opens (or creates) the weekly aggregator note built from that week's journal files. Manual sections you added are preserved when the note is rebuilt.
 - **➕ Add journal entry**: date + text → appends to the day's file in `Life Calendar/Journal/`.
 - **Events**: add / edit / delete (date, title, color) via the Events window or the command palette. Events show as colored hearts on the grid.
-- **📤 Export backup**: builds `Life Calendar/backup.json` in the exact JSON format the Android app's BackupManager imports (`version`, `birthDate`, `lifespanYears`, `entries`, `events`). Import the file into the Android app (Profile → backup) or into another Obsidian vault.
-- **📥 Import backup**: restores a backup file into this vault — journal entries and events are merged without duplicates. Optionally applies the birth date and lifespan from the file (turned on by default when no birth date is set yet). Use it to move your calendar to a new Obsidian account or restore from an Android export.
+- **🎨 Life zones**: mark periods of life (e.g. school, university, career) with a pastel background across the weeks they cover. Open via the **Zones** button in the toolbar or the command palette: add a title, start and end dates, and pick a pastel color. When zones overlap, the more recent zone's color is shown; the tooltip lists all overlapping zones. Zones are stored in settings and included in the backup.
+- **📤 Export backup**: builds `Life Calendar/backup.json` in the exact JSON format the Android app's BackupManager imports (`version`, `birthDate`, `lifespanYears`, `entries`, `events`). Import the file into the Android app (Profile → backup) or into another Obsidian vault. Since v1.4.0 zones are exported as an extra `zones` key — the Android app ignores it (`ignoreUnknownKeys`).
+- **📥 Import backup**: restores a backup file into this vault — journal entries and events are merged without duplicates. Since v1.4.0 zones from the backup are imported too (duplicates by title + start + end are skipped). Optionally applies the birth date and lifespan from the file (turned on by default when no birth date is set yet). Use it to move your calendar to a new Obsidian account or restore from an Android export.
 - **Commands** (Command palette):
   - `My Life Calendar: Open Life Calendar`
   - `My Life Calendar: Add entry to journal`
   - `My Life Calendar: Events (add / edit / delete)`
+  - `My Life Calendar: Zones (add / edit / delete)`
   - `My Life Calendar: Export backup (JSON)`
   - `My Life Calendar: Import from backup (JSON)`
+
+## Life Zones (life periods)
+
+Life Zones let you mark periods of life — school, university, work, marriage, etc. — with a continuous pastel band across the weeks they cover, so you can see at a glance which stage of life every week belonged to.
+
+### How to create a zone
+
+1. Open the **Life Calendar** view.
+2. Click the **🎨 Zones** button in the toolbar, or run the command `My Life Calendar: Zones (add / edit / delete)`.
+3. In the **Zones** window click **➕** (Add).
+4. Fill in the form:
+   - **Name** — e.g. "University" (required);
+   - **Start date** — the day the period began;
+   - **End date** — the day the period ended (must not be earlier than the start);
+   - **Color** — pick one of the 8 pastel colors from the palette.
+5. Click **Save**. The zone is painted on the grid as a solid band that starts at the week containing the start date and ends at the week containing the end date.
+
+### Editing and deleting
+
+- **Edit**: open the Zones window and click the zone row — the edit form opens with the same fields.
+- **Delete**: in the Zones window click **🗑** next to the zone.
+
+### How it looks
+
+- The band is a **continuous fill** behind the hearts: no gaps between heart cells or between years.
+- The fill is on the **lowest layer** — changing a heart's color or ring never hides the zone behind it.
+- **Overlapping zones**: when two zones cover the same weeks, the color of the zone with the **later start date** is shown on top; hovering such a week lists **all** overlapping zones in the tooltip (with their date ranges).
+- The zone band is only a visual marker: it does not create notes or events.
+
+### Where zones are stored
+
+Zones are saved in the plugin settings. When you **📤 export** a backup, zones are written to `backup.json` under the `zones` key (color as ARGB, like events). **📥 Import** restores them too — zones that already exist (same name + start + end) are skipped. The Android app ignores the `zones` key, so the file stays compatible.
 
 ## Settings
 
@@ -53,6 +87,7 @@ All paths are configurable in the plugin settings.
 - Lifespan (50–120 years)
 - Language: auto (Obsidian language) / Russian / English
 - Journal folder, weekly folder, events file, export file paths
+- Life zones (add / edit / delete via the Zones window)
 - Reset heart colors/rings
 
 ## Development

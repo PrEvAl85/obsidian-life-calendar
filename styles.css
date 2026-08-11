@@ -31,12 +31,19 @@
   font-size: 15px;
   line-height: 1;
   position: relative;
+  z-index: 1;
   transition: transform 0.15s ease;
   cursor: pointer;
 }
 .life-cal .heart:hover {
   transform: scale(1.5);
   z-index: 10;
+}
+.lc-zone-band {
+  position: absolute;
+  z-index: 0;
+  border-radius: 4px;
+  pointer-events: none;
 }
 .life-cal .filled {
   color: #d22;

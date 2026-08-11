@@ -23,6 +23,7 @@ const ru = {
   cmdOpen: "Открыть Life Calendar",
   cmdAddEntry: "Добавить запись в дневник",
   cmdEvents: "События (добавить / редактировать / удалить)",
+  cmdZones: "Зоны (добавить / редактировать / удалить)",
   cmdExport: "Экспорт резервной копии (JSON)",
   cmdImport: "Импорт из резервной копии (JSON)",
   ribbon: "Life Calendar",
@@ -34,7 +35,7 @@ const ru = {
     "Экспорт готов: {path}\nЗаписей: {entries}, событий: {events}. Файл можно импортировать в Life Calendar (Android) или в другой vault Obsidian.",
   exportError: "Life Calendar: ошибка экспорта: {error}",
   importSummary:
-    "Импорт завершён: записей +{entries}, событий +{events}. Пропущено дублей: {skipped}.",
+    "Импорт завершён: записей +{entries}, событий +{events}, зон +{zones}. Пропущено дублей: {skipped}.",
   importEmpty: "Новых данных нет — всё уже импортировано ранее",
   importError: "Life Calendar: ошибка импорта: {error}",
   importInvalidBackup: "Неверный формат файла резервной копии",
@@ -59,6 +60,7 @@ const ru = {
   // Сетка / view
   addEntryBtn: "➕ Запись в дневник",
   eventsBtn: "События",
+  zonesBtn: "🎨 Зоны",
   exportBtn: "📤 Экспорт",
   importBtn: "📥 Импорт",
   legend: "Дата рождения: {birth}   Сегодня: {today}   Возраст: {age} лет и {weeks} нед.   Записей в неделях: {weeksWith}",
@@ -90,6 +92,19 @@ const ru = {
   importFileLabel: "Файл резервной копии (JSON)",
   importBrowse: "Обзор…",
   importApplyMeta: "Применить дату рождения и срок жизни из файла",
+
+  // Зоны
+  zonesTitle: "Зоны",
+  noZones: "Зон пока нет",
+  newZoneTitle: "Новая зона",
+  editZoneTitle: "Редактировать зону",
+  zoneName: "Название",
+  zoneNamePlaceholder: "Например: Учёба в школе",
+  zoneStart: "Дата начала",
+  zoneEnd: "Дата конца",
+  enterZoneName: "Введите название зоны",
+  invalidDateRange: "Дата конца должна быть не раньше даты начала",
+  zoneDateRange: "{start} – {end}",
 
   // Тултип (палитры)
   colorTip: "Цвет сердечка",
@@ -158,6 +173,7 @@ const en: Dict = {
   cmdOpen: "Open Life Calendar",
   cmdAddEntry: "Add journal entry",
   cmdEvents: "Events (add / edit / delete)",
+  cmdZones: "Zones (add / edit / delete)",
   cmdExport: "Export backup (JSON)",
   cmdImport: "Import from backup (JSON)",
   ribbon: "Life Calendar",
@@ -168,7 +184,7 @@ const en: Dict = {
     "Export ready: {path}\nEntries: {entries}, events: {events}. Import the file into Life Calendar (Android) or another Obsidian vault.",
   exportError: "Life Calendar: export error: {error}",
   importSummary:
-    "Import done: entries +{entries}, events +{events}. Duplicates skipped: {skipped}.",
+    "Import done: entries +{entries}, events +{events}, zones +{zones}. Duplicates skipped: {skipped}.",
   importEmpty: "Nothing new to import — everything is already there",
   importError: "Life Calendar: import error: {error}",
   importInvalidBackup: "Invalid backup file format",
@@ -191,6 +207,7 @@ const en: Dict = {
 
   addEntryBtn: "➕ Journal entry",
   eventsBtn: "Events",
+  zonesBtn: "🎨 Zones",
   exportBtn: "📤 Export",
   importBtn: "📥 Import",
   legend: "Birth date: {birth}   Today: {today}   Age: {age} y {weeks} w.   Weeks with entries: {weeksWith}",
@@ -221,6 +238,18 @@ const en: Dict = {
   importFileLabel: "Backup file (JSON)",
   importBrowse: "Browse…",
   importApplyMeta: "Apply birth date and lifespan from the file",
+
+  zonesTitle: "Zones",
+  noZones: "No zones yet",
+  newZoneTitle: "New zone",
+  editZoneTitle: "Edit zone",
+  zoneName: "Name",
+  zoneNamePlaceholder: "e.g. School",
+  zoneStart: "Start date",
+  zoneEnd: "End date",
+  enterZoneName: "Please enter the zone name",
+  invalidDateRange: "End date must not be earlier than start date",
+  zoneDateRange: "{start} – {end}",
 
   colorTip: "Heart color",
   resetColor: "Reset color",

@@ -1,5 +1,5 @@
 import type { App } from "obsidian";
-import { BackupData, LIFESPAN_MAX, LIFESPAN_MIN, LifeCalendarSettings } from "./types";
+import { BackupData, BackupZone, LIFESPAN_MAX, LIFESPAN_MIN, LifeCalendarSettings } from "./types";
 import { isValidKey } from "./date";
 import type { JournalStore } from "./journal";
 import type { EventsStore } from "./events";
@@ -12,6 +12,8 @@ export interface ImportResult {
   entriesSkipped: number;
   eventsAdded: number;
   eventsSkipped: number;
+  zonesAdded: number;
+  zonesSkipped: number;
   metaApplied: boolean;
 }
 
@@ -49,6 +51,24 @@ export class ImportManager {
       lifespanYears: typeof d.lifespanYears === "number" ? d.lifespanYears : 100,
       entries: d.entries,
       events: d.events,
+      zones: (Array.isArray(d.zones) ? d.zones : [])
+        .map((z): BackupZone | null => {
+          const o = z as Partial<BackupZone> | null;
+          if (!o) return null;
+          const title = typeof o.title === "string" ? o.title.trim() : "";
+          const start = o.start;
+          const end = o.end;
+          if (!title || typeof start !== "string" || typeof end !== "string") return null;
+          if (!isValidKey(start) || !isValidKey(end)) return null;
+          return {
+            title,
+            start,
+            end,
+            color:
+              typeof o.color === "number" && Number.isFinite(o.color) ? o.color : 0xfff5c2,
+          };
+        })
+        .filter((z): z is BackupZone => z !== null),
     };
   }
 
@@ -116,7 +136,43 @@ export class ImportManager {
       await this.events.write(merged);
     }
 
-    return { entriesAdded, entriesSkipped, eventsAdded, eventsSkipped, metaApplied };
+    // Зоны (периоды жизни) — добавляются без дублей по (название + диапазон)
+    const existingZones = s.zones ?? [];
+    const zoneSeen = new Set(existingZones.map((z) => z.title + "\u0000" + z.start + "\u0000" + z.end));
+    let zonesAdded = 0;
+    let zonesSkipped = 0;
+    const mergedZones = [...existingZones];
+    for (const b of data.zones ?? []) {
+      const title = b.title.trim();
+      const key = title + "\u0000" + b.start + "\u0000" + b.end;
+      if (zoneSeen.has(key) || b.end < b.start) {
+        zonesSkipped++;
+        continue;
+      }
+      mergedZones.push({
+        id: "z" + Date.now().toString(36) + Math.random().toString(36).slice(2, 6),
+        title,
+        start: b.start,
+        end: b.end,
+        color: argbToHex(b.color),
+      });
+      zoneSeen.add(key);
+      zonesAdded++;
+    }
+    if (zonesAdded) {
+      s.zones = mergedZones;
+      await this.saveSettings();
+    }
+
+    return {
+      entriesAdded,
+      entriesSkipped,
+      eventsAdded,
+      eventsSkipped,
+      zonesAdded,
+      zonesSkipped,
+      metaApplied,
+    };
   }
 }
 

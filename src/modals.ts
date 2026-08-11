@@ -1,6 +1,6 @@
 import { App, Modal, Notice, TFile } from "obsidian";
 import { addDays, formatKey, todayKey } from "./date";
-import { HEART_COLORS, JournalEntry, LifeEvent } from "./types";
+import { HEART_COLORS, JournalEntry, LifeEvent, LifeZone, ZONE_COLORS } from "./types";
 import { keyToDmy, weekdayName } from "./util";
 import { t } from "./i18n";
 import { ImportResult, InvalidBackupError } from "./import";
@@ -152,6 +152,193 @@ export class EventsModal extends Modal {
 
   onClose(): void {
     this.contentEl.empty();
+  }
+}
+
+/** Модалка управления зонами: список + добавление/редактирование/удаление. */
+export class ZonesModal extends Modal {
+  private zones: LifeZone[] = [];
+
+  constructor(
+    app: App,
+    private load: () => LifeZone[],
+    private save: (zones: LifeZone[]) => Promise<void>,
+  ) {
+    super(app);
+  }
+
+  onOpen(): void {
+    this.zones = this.load();
+    this.render();
+  }
+
+  private render(): void {
+    const { contentEl } = this;
+    contentEl.empty();
+    contentEl.addClass("lc-modal");
+    contentEl.createEl("h3", { text: t("zonesTitle") });
+
+    const list = contentEl.createDiv({ cls: "lc-events-list" });
+    const sorted = [...this.zones].sort((a, b) => a.start.localeCompare(b.start));
+    for (const z of sorted) {
+      const item = list.createDiv({ cls: "lc-event-item" });
+      const dot = item.createDiv({ cls: "lc-event-dot" });
+      dot.style.background = z.color;
+      item.createSpan({
+        cls: "lc-event-date",
+        text: t("zoneDateRange", { start: formatKey(z.start), end: formatKey(z.end) }),
+      });
+      item.createSpan({ cls: "lc-event-title", text: z.title });
+      const del = item.createEl("button", { cls: "lc-event-del", text: "🗑" });
+      del.title = t("delete");
+      del.addEventListener("click", () => {
+        void (async () => {
+          this.zones = this.zones.filter((x) => x.id !== z.id);
+          await this.save(this.zones);
+          this.render();
+        })();
+      });
+      item.addEventListener("click", (e) => {
+        void (async () => {
+          if (e.target === del) return;
+          const editModal = new ZoneEditModal(this.app, z);
+          editModal.open();
+          const edited = await editModal.awaitResult();
+          if (edited) {
+            this.zones = this.zones.map((x) => (x.id === z.id ? edited : x));
+            await this.save(this.zones);
+            this.render();
+          }
+        })();
+      });
+    }
+    if (!this.zones.length) {
+      list.createDiv({ cls: "lc-events-empty", text: t("noZones") });
+    }
+
+    const row = contentEl.createDiv({ cls: "lc-modal-row" });
+    row.createEl("button", { cls: "mod-cta", text: t("addBtn") }).addEventListener("click", () => {
+      void (async () => {
+        const addModal = new ZoneEditModal(this.app, null);
+        addModal.open();
+        const added = await addModal.awaitResult();
+        if (added) {
+          this.zones.push(added);
+          await this.save(this.zones);
+          this.render();
+        }
+      })();
+    });
+    row.createEl("button", { cls: "lc-modal-cancel", text: t("close") }).addEventListener("click", () => this.close());
+  }
+
+  onClose(): void {
+    this.contentEl.empty();
+  }
+}
+
+/** Модалка редактирования/добавления одной зоны. */
+class ZoneEditModal extends Modal {
+  private result: LifeZone | null = null;
+  private resolveFn: ((v: LifeZone | null) => void) | null = null;
+  private promise: Promise<LifeZone | null>;
+
+  constructor(
+    app: App,
+    private initial: LifeZone | null,
+  ) {
+    super(app);
+    this.promise = new Promise((resolve) => {
+      this.resolveFn = resolve;
+    });
+  }
+
+  awaitResult(): Promise<LifeZone | null> {
+    return this.promise;
+  }
+
+  private finish(v: LifeZone | null): void {
+    this.result = v;
+    this.close();
+  }
+
+  onOpen(): void {
+    const { contentEl } = this;
+    contentEl.addClass("lc-modal");
+    contentEl.createEl("h3", { text: this.initial ? t("editZoneTitle") : t("newZoneTitle") });
+
+    const titleWrap = contentEl.createDiv({ cls: "lc-modal-field" });
+    titleWrap.createEl("label", { text: t("zoneName") });
+    const titleInput = titleWrap.createEl("input", {
+      cls: "lc-modal-text",
+      attr: { placeholder: t("zoneNamePlaceholder") },
+    });
+    titleInput.value = this.initial ? this.initial.title : "";
+
+    const startWrap = contentEl.createDiv({ cls: "lc-modal-field" });
+    startWrap.createEl("label", { text: t("zoneStart") });
+    const startInput = startWrap.createEl("input", { type: "date" });
+    startInput.value = this.initial ? this.initial.start : todayKey();
+
+    const endWrap = contentEl.createDiv({ cls: "lc-modal-field" });
+    endWrap.createEl("label", { text: t("zoneEnd") });
+    const endInput = endWrap.createEl("input", { type: "date" });
+    endInput.value = this.initial ? this.initial.end : todayKey();
+
+    const colorWrap = contentEl.createDiv({ cls: "lc-modal-field" });
+    colorWrap.createEl("label", { text: t("color") });
+    const colors = colorWrap.createDiv({ cls: "lc-event-colors" });
+    let color = this.initial ? this.initial.color : ZONE_COLORS[0];
+    for (const c of ZONE_COLORS) {
+      const sw = colors.createDiv({ cls: "lc-event-color-swatch" });
+      sw.style.background = c;
+      sw.setAttribute("data-c", c);
+      if (c === color) sw.addClass("sel");
+      sw.addEventListener("click", () => {
+        color = c;
+        colors.querySelectorAll(".lc-event-color-swatch").forEach((x) => x.removeClass("sel"));
+        sw.addClass("sel");
+      });
+    }
+
+    const row = contentEl.createDiv({ cls: "lc-modal-row" });
+    row.createEl("button", { cls: "lc-modal-cancel", text: t("cancel") }).addEventListener("click", () => {
+      this.finish(null);
+    });
+    const save = row.createEl("button", { cls: "mod-cta", text: t("save") });
+    save.addEventListener("click", () => {
+      const title = titleInput.value.trim();
+      const start = startInput.value;
+      const end = endInput.value;
+      if (!title) {
+        new Notice(t("enterZoneName"));
+        return;
+      }
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(start) || !/^\d{4}-\d{2}-\d{2}$/.test(end)) {
+        new Notice(t("invalidDate"));
+        return;
+      }
+      if (end < start) {
+        new Notice(t("invalidDateRange"));
+        return;
+      }
+      const base = this.initial;
+      this.finish({
+        id: base ? base.id : "z" + Date.now().toString(36),
+        title,
+        start,
+        end,
+        color,
+      });
+    });
+  }
+
+  onClose(): void {
+    this.contentEl.empty();
+    if (this.resolveFn) {
+      this.resolveFn(this.result);
+      this.resolveFn = null;
+    }
   }
 }
 
@@ -613,14 +800,15 @@ export class ImportModal extends Modal {
       browse.disabled = true;
       try {
         const result = await this.onImport(content, metaBox.checked);
-        if (result.entriesAdded + result.eventsAdded === 0) {
+        if (result.entriesAdded + result.eventsAdded + result.zonesAdded === 0) {
           new Notice(t("importEmpty"), 6000);
         } else {
           new Notice(
             t("importSummary", {
               entries: result.entriesAdded,
               events: result.eventsAdded,
-              skipped: result.entriesSkipped + result.eventsSkipped,
+              zones: result.zonesAdded,
+              skipped: result.entriesSkipped + result.eventsSkipped + result.zonesSkipped,
             }),
             6000,
           );

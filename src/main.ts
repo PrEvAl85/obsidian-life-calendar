@@ -8,7 +8,7 @@ import { ImportManager, ImportResult } from "./import";
 import { BirthDateModal, setupStructure } from "./onboarding";
 import { LifeCalendarSettingTab } from "./settings";
 import { LifeCalendarView, VIEW_TYPE_LIFE_CALENDAR } from "./view";
-import { AddEntryModal, EventsModal, ImportModal } from "./modals";
+import { AddEntryModal, EventsModal, ImportModal, ZonesModal } from "./modals";
 import { resolveLanguage, setLanguage, t } from "./i18n";
 import { todayKey } from "./date";
 
@@ -62,6 +62,21 @@ export default class LifeCalendarPlugin extends Plugin {
       name: t("cmdEvents"),
       callback: () => {
         new EventsModal(this.app, () => this.events.read(), (ev) => this.events.write(ev)).open();
+      },
+    });
+    this.addCommand({
+      id: "manage-zones",
+      name: t("cmdZones"),
+      callback: () => {
+        new ZonesModal(
+          this.app,
+          () => this.settings.zones,
+          async (zones) => {
+            this.settings.zones = zones;
+            await this.saveSettings();
+            this.refreshViews();
+          },
+        ).open();
       },
     });
     this.addCommand({

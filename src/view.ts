@@ -1,9 +1,9 @@
 import { ItemView, WorkspaceLeaf, TFile, Notice } from "obsidian";
 import LifeCalendarPlugin from "./main";
-import { HEART_COLORS, RING_COLORS, JournalEntry, LifeEvent, WeekStyle } from "./types";
+import { HEART_COLORS, RING_COLORS, JournalEntry, LifeEvent, LifeZone, WeekStyle } from "./types";
 import { keyToDmy, dmyToKey, weekdayName, weekKeyOf } from "./util";
 import { addDays, addYears, diffDays, diffYears, formatKey, isValidKey, mondayKeyOf, monthDayOf, todayKey, yearOf } from "./date";
-import { AddEntryModal, EventsModal, ImportModal, WeekModal } from "./modals";
+import { AddEntryModal, EventsModal, ImportModal, WeekModal, ZonesModal } from "./modals";
 import { t } from "./i18n";
 
 export const VIEW_TYPE_LIFE_CALENDAR = "life-calendar-view";
@@ -95,6 +95,8 @@ export class LifeCalendarView extends ItemView {
     addBtn.type = "button";
     const evBtn = tool.createEl("button", { cls: "add-btn", text: t("eventsBtn") });
     evBtn.type = "button";
+    const zoneBtn = tool.createEl("button", { cls: "add-btn", text: t("zonesBtn") });
+    zoneBtn.type = "button";
     const expBtn = tool.createEl("button", { cls: "add-btn", text: t("exportBtn") });
     expBtn.type = "button";
     const impBtn = tool.createEl("button", { cls: "add-btn", text: t("importBtn") });
@@ -109,7 +111,8 @@ export class LifeCalendarView extends ItemView {
       weeksWith: srcCache.size,
     });
 
-    const grid = container.createDiv({ cls: "life-cal-wrap" }).createDiv({ cls: "life-cal" });
+    const wrap = container.createDiv({ cls: "life-cal-wrap" });
+    const grid = wrap.createDiv({ cls: "life-cal" });
     const startYear = yearOf(start);
 
     for (let r = 0; r < lifespan; r++) {
@@ -164,6 +167,19 @@ export class LifeCalendarView extends ItemView {
           }
         }
 
+        // Зоны: подсветка пастельным фоном диапазона недель
+        const zoneOverlaps: LifeZone[] = [];
+        for (const z of s.zones) {
+          if (z.start <= weekEnd && z.end >= weekStart) zoneOverlaps.push(z);
+        }
+        if (zoneOverlaps.length) {
+          tooltip +=
+            "\n🎨 " +
+            zoneOverlaps
+              .map((z) => `${z.title} (${formatKey(z.start)}–${formatKey(z.end)})`)
+              .join(", ");
+        }
+
         let mk = mondayKeyOf(weekStart);
         let src = srcCache.get(mk);
         if (!src) {
@@ -201,6 +217,9 @@ export class LifeCalendarView extends ItemView {
         }
         const cell = row.createSpan({ cls, attr: { "data-week": keyToDmy(mk), "data-tip": tooltip } });
         if (customColor) cell.style.setProperty("color", customColor);
+        if (zoneOverlaps.length) {
+          for (const z of zoneOverlaps) cell.classList.add("z-" + z.id);
+        }
         if (ringColor) cell.style.setProperty("--lc-ring", ringColor);
         cell.createSpan({ cls: "h-glyph", text: ch });
       }
@@ -208,8 +227,41 @@ export class LifeCalendarView extends ItemView {
       row.createSpan({ cls: "year-label", text: String(year) });
     }
 
+    this.renderZoneBands(wrap, s.zones);
     this.attachTooltip(grid, srcCache);
-    this.attachClicks(grid, addBtn, evBtn, expBtn, impBtn);
+    this.attachClicks(grid, addBtn, evBtn, zoneBtn, expBtn, impBtn);
+  }
+
+  private renderZoneBands(wrap: HTMLElement, zones: LifeZone[]): void {
+    const groups = zones
+      .map((z) => ({ z, els: Array.from(wrap.querySelectorAll<HTMLElement>(".z-" + z.id)) }))
+      .filter((g) => g.els.length > 0)
+      .sort((a, b) => a.z.start.localeCompare(b.z.start));
+    for (const { z, els } of groups) {
+      const rowMap = new Map<HTMLElement, HTMLElement[]>();
+      for (const el of els) {
+        const row = el.parentElement;
+        if (!row) continue;
+        let arr = rowMap.get(row);
+        if (!arr) {
+          arr = [];
+          rowMap.set(row, arr);
+        }
+        arr.push(el);
+      }
+      for (const [row, arr] of rowMap) {
+        arr.sort((a, b) => a.offsetLeft - b.offsetLeft);
+        const left = arr[0].offsetLeft;
+        const right = arr[arr.length - 1].offsetLeft + arr[arr.length - 1].offsetWidth;
+        const band = wrap.createDiv({ cls: "lc-zone-band" });
+        band.style.left = left + "px";
+        band.style.top = row.offsetTop + "px";
+        band.style.width = right - left + "px";
+        band.style.height = row.offsetHeight + 2 + "px";
+        band.style.backgroundColor = z.color;
+        band.title = `${z.title} (${formatKey(z.start)}–${formatKey(z.end)})`;
+      }
+    }
   }
 
   private attachTooltip(grid: HTMLElement, srcCache: Map<string, WeekSource>): void {
@@ -367,6 +419,7 @@ export class LifeCalendarView extends ItemView {
     grid: HTMLElement,
     addBtn: HTMLElement,
     evBtn: HTMLElement,
+    zoneBtn: HTMLElement,
     expBtn: HTMLElement,
     impBtn: HTMLElement,
   ): void {
@@ -385,6 +438,18 @@ export class LifeCalendarView extends ItemView {
         this.app,
         () => this.plugin.events.read(),
         async (events) => this.plugin.events.write(events),
+      ).open();
+    });
+
+    zoneBtn.addEventListener("click", () => {
+      new ZonesModal(
+        this.app,
+        () => this.plugin.settings.zones,
+        async (zones) => {
+          this.plugin.settings.zones = zones;
+          await this.plugin.saveSettings();
+          await this.render();
+        },
       ).open();
     });
 

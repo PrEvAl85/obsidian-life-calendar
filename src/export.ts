@@ -21,6 +21,7 @@ export class ExportManager {
       lifespanYears: s.lifespanYears,
       entries: entries.map((e) => ({ date: e.date, text: e.text })),
       events: events.map((e) => ({ date: e.date, title: e.title, color: argb(e.color) })),
+      zones: s.zones.map((z) => ({ title: z.title, start: z.start, end: z.end, color: argb(z.color) })),
     };
     return JSON.stringify(data, null, 2) + "\n";
   }
