@@ -2,7 +2,7 @@
 
 A life-in-weeks view for Obsidian: your whole life as a grid of heart-shaped cells (52 columns = weeks of the year, each row = one year), with a built-in journal, events, and JSON backup (import/export) compatible with the **Life Calendar** Android app.
 
-> Inspired by the "Life in Weeks" idea (WaitButWhy). Visual style matches the Life Calendar Android app: lived weeks are red hearts ♥, future weeks are grey ♡, birthday weeks are green, events are hearts in their own color, and weeks that have journal entries get a yellow dot.
+> Based on the idea of Life in Weeks from WaitButWhy. Visual style matches: lived weeks are red hearts ♥, future weeks are grey ♡, birthday weeks are green, events are hearts in their own color, and weeks that have journal entries get a yellow dot.
 
 ## Installation
 
