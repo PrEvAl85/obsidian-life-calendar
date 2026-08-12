@@ -1,4 +1,4 @@
-import { Notice, Plugin } from "obsidian";
+import { getLanguage, Notice, Plugin } from "obsidian";
 import { DEFAULT_SETTINGS, LifeCalendarSettings } from "./types";
 import { JournalStore } from "./journal";
 import { WeekStore } from "./weekly";
@@ -22,7 +22,7 @@ export default class LifeCalendarPlugin extends Plugin {
 
   async onload(): Promise<void> {
     await this.loadSettings();
-    setLanguage(resolveLanguage(this.settings.language));
+    setLanguage(resolveLanguage(this.settings.language, getLanguage));
 
     this.journal = new JournalStore(this.app, () => this.settings);
     this.week = new WeekStore(this.app, () => this.settings);

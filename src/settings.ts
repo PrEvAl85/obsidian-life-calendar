@@ -1,4 +1,4 @@
-import { App, Notice, PluginSettingTab, Setting } from "obsidian";
+import { App, getLanguage, Notice, PluginSettingTab, Setting } from "obsidian";
 import type { SettingDefinitionItem, SettingGroupItem } from "obsidian";
 import LifeCalendarPlugin from "./main";
 import { DEFAULT_SETTINGS, LIFESPAN_MAX, LIFESPAN_MIN } from "./types";
@@ -158,7 +158,7 @@ export class LifeCalendarSettingTab extends PluginSettingTab {
       rec[key] = value;
     }
     if (key === "language") {
-      setLanguage(resolveLanguage(String(value)));
+      setLanguage(resolveLanguage(String(value), getLanguage));
       this.update();
       this.plugin.refreshViews();
     } else if (key === "birthDate" || key === "lifespanYears") {

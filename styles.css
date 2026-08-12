@@ -272,6 +272,9 @@
   padding: 4px 12px;
   cursor: pointer;
 }
+.lc-hidden {
+  display: none;
+}
 .lc-events-list {
   margin-bottom: 12px;
   max-height: 320px;

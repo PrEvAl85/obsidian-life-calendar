@@ -742,9 +742,9 @@ export class ImportModal extends Modal {
     });
 
     const fileInput = pathRow.createEl("input", {
+      cls: "lc-hidden",
       attr: { type: "file", accept: ".json,application/json" },
     });
-    fileInput.style.display = "none";
 
     const browse = pathRow.createEl("button", { cls: "lc-modal-cancel", text: t("importBrowse") });
     browse.type = "button";
@@ -757,7 +757,7 @@ export class ImportModal extends Modal {
       if (!f) return;
       const reader = new FileReader();
       reader.onload = () => {
-        this.pickedContent = String(reader.result || "");
+        this.pickedContent = typeof reader.result === "string" ? reader.result : "";
         this.filePath = "";
         pathInput.value = f.name;
         pathInput.disabled = true;

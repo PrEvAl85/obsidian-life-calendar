@@ -311,12 +311,12 @@ export function getLanguage(): Language {
 
 /**
  * Выбор языка из настройки плагина: "ru"/"en" — явно,
- * "" (или любое другое) — по языку Obsidian (localStorage "language"), fallback английский.
+ * "" (или любое другое) — по языку Obsidian (app.getLanguage()), fallback английский.
  */
-export function resolveLanguage(pref: string): Language {
+export function resolveLanguage(pref: string, getObsidianLang: () => string): Language {
   if (pref === "ru") return "ru";
   if (pref === "en") return "en";
-  const loc = (localStorage.getItem("language") || navigator.language || "en").toLowerCase();
+  const loc = (getObsidianLang() || navigator.language || "en").toLowerCase();
   return loc.startsWith("ru") ? "ru" : "en";
 }
 
