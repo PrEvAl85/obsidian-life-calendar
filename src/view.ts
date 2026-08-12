@@ -430,7 +430,7 @@ export class LifeCalendarView extends ItemView {
         const path = await this.plugin.journal.addEntry(date, text);
         new Notice(t("entryAdded", { path }));
         await this.render();
-      }).open();
+      }, this.plugin.settings.journalFolder).open();
     });
 
     evBtn.addEventListener("click", () => {
@@ -535,6 +535,7 @@ export class LifeCalendarView extends ItemView {
             }
           },
         },
+        this.plugin.settings.journalFolder,
       ).open();
     });
   }

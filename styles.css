@@ -429,3 +429,178 @@
   font-size: 13px;
   padding: 8px 6px;
 }
+
+/* Toolbar в модалках ввода записи */
+.lc-modal-toolbar {
+  display: flex;
+  gap: 4px;
+  margin-bottom: 6px;
+}
+.lc-modal-toolbar-btn {
+  font-size: 12px;
+  padding: 2px 8px;
+  background: var(--background-secondary-alt);
+  color: var(--text-normal);
+  border: 1px solid var(--background-modifier-border);
+  border-radius: 4px;
+  cursor: pointer;
+}
+.lc-modal-toolbar-btn:hover {
+  background: var(--background-modifier-hover);
+}
+
+/* Отрендеренный контент записи в окне недели */
+.lc-week-item-rendered {
+  max-height: 200px;
+  overflow: auto;
+  font-size: 13px;
+  line-height: 1.5;
+  margin-top: 4px;
+}
+.lc-week-item-rendered img {
+  max-width: 100%;
+  max-height: 150px;
+  height: auto;
+  display: block;
+  border-radius: 4px;
+}
+.lc-week-item-rendered a.internal-link {
+  color: var(--text-accent);
+  text-decoration: underline;
+  text-decoration-style: dotted;
+}
+.lc-week-item-rendered p {
+  margin: 0 0 0.5em;
+}
+.lc-week-item-rendered p:last-child {
+  margin-bottom: 0;
+}
+.lc-week-item-rendered ul,
+.lc-week-item-rendered ol {
+  margin: 0.5em 0;
+  padding-left: 1.5em;
+}
+
+/* Превью изображений в модалках ввода записи */
+.lc-modal-preview {
+  display: none;
+  margin-top: 6px;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+.lc-modal-preview.has-content {
+  display: flex;
+}
+.lc-modal-preview-img {
+  max-width: 100px;
+  max-height: 80px;
+  height: auto;
+  border-radius: 4px;
+  border: 1px solid var(--background-modifier-border);
+  object-fit: cover;
+}
+
+/* Отрендеренный контент записи в окне недели */
+.lc-week-item-rendered {
+  max-height: 200px;
+  overflow: auto;
+  font-size: 13px;
+  line-height: 1.5;
+  margin-top: 4px;
+}
+.lc-week-item-rendered img {
+  max-width: 100%;
+  max-height: 80px;
+  height: auto;
+  display: block;
+  border-radius: 4px;
+}
+.lc-week-item-rendered a.internal-link {
+  color: var(--text-accent);
+  text-decoration: underline;
+  text-decoration-style: dotted;
+}
+.lc-week-item-rendered p {
+  margin: 0 0 0.5em;
+}
+.lc-week-item-rendered p:last-child {
+  margin-bottom: 0;
+}
+.lc-week-item-rendered ul,
+.lc-week-item-rendered ol {
+  margin: 0.5em 0;
+  padding-left: 1.5em;
+}
+
+/* Кастомный suggest для [[ и ![[ */
+.lc-suggest {
+  position: absolute;
+  z-index: 100;
+  background: var(--background-primary);
+  border: 1px solid var(--background-modifier-border);
+  border-radius: 4px;
+  max-height: 200px;
+  overflow: auto;
+  min-width: 200px;
+  box-shadow: var(--shadow-s);
+}
+.lc-suggest-item {
+  padding: 6px 10px;
+  cursor: pointer;
+  font-size: 13px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.lc-suggest-item:hover,
+.lc-suggest-item.is-selected {
+  background: var(--background-modifier-hover);
+}
+
+/* Модалка выбора изображения */
+.lc-image-tabs {
+  display: flex;
+  gap: 4px;
+  margin-bottom: 12px;
+  border-bottom: 1px solid var(--background-modifier-border);
+  padding-bottom: 4px;
+}
+.lc-image-tab {
+  padding: 6px 12px;
+  background: transparent;
+  border: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  border-radius: 4px;
+  font-size: 13px;
+}
+.lc-image-tab:hover {
+  background: var(--background-modifier-hover);
+  color: var(--text-normal);
+}
+.lc-image-tab.active {
+  background: var(--background-modifier-active);
+  color: var(--text-normal);
+  font-weight: 600;
+}
+.lc-image-tab-content {
+  min-height: 200px;
+}
+.lc-image-dropzone {
+  border: 2px dashed var(--background-modifier-border);
+  border-radius: 8px;
+  padding: 40px 20px;
+  text-align: center;
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+.lc-image-dropzone:hover,
+.lc-image-dropzone.dragover {
+  border-color: var(--text-accent);
+  background: var(--background-modifier-hover);
+  color: var(--text-normal);
+}
+.lc-image-dropzone input[type="file"] {
+  display: none;
+}

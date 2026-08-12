@@ -54,7 +54,7 @@ export default class LifeCalendarPlugin extends Plugin {
             console.error("Life Calendar: add entry", err);
             new Notice(t("genericError", { error: err instanceof Error ? err.message : String(err) }));
           }
-        }).open();
+        }, this.settings.journalFolder).open();
       },
     });
     this.addCommand({

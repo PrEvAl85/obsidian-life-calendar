@@ -1,6 +1,6 @@
 import { App, TFile } from "obsidian";
 import { JournalEntry, LifeCalendarSettings } from "./types";
-import { cleanNoteText, ensureFolder, keyToDmy, pad } from "./util";
+import { cleanNoteText, cleanNoteTextForDisplay, ensureFolder, keyToDmy, pad } from "./util";
 import { monthNameGen } from "./i18n";
 import { mondayKeyOf } from "./date";
 
@@ -54,7 +54,8 @@ export class JournalStore {
     const out: JournalEntry[] = [];
     for (let i = 0; i < blocks.length; i++) {
       const text = cleanNoteText(blocks[i]);
-      if (text) out.push({ date: dateKey, text, path, index: i, blocks: blocks.length });
+      const rawText = cleanNoteTextForDisplay(blocks[i]);
+      if (text || rawText) out.push({ date: dateKey, text, rawText, path, index: i, blocks: blocks.length });
     }
     return out;
   }
@@ -65,27 +66,32 @@ export class JournalStore {
     return all.filter((e) => this.weekOf(e.date) === weekKey);
   }
 
+  /** Проверка, является ли текст пустым или только whitespace. */
+  private isEmptyText(text: string): boolean {
+    return !text || text.trim().length === 0;
+  }
+
   async hasEntryInWeek(weekKey: string): Promise<boolean> {
     return (await this.getWeek(weekKey)).length > 0;
   }
 
   /** Добавление записи за дату: дополняет файл дня или создаёт новый. */
-  async addEntry(dateKey: string, text: string): Promise<string> {
+  async addEntry(dateKey: string, text: string, rawText?: string): Promise<string> {
     const path = this.pathFor(dateKey);
     const file = this.app.vault.getAbstractFileByPath(path) as TFile | null;
     if (file) {
       const existing = await this.app.vault.read(file);
-      const content = existing.replace(/\s*$/, "") + "\n\n---\n\n" + text.trim() + "\n";
+      const content = existing.replace(/\s*$/m, "") + "\n\n---\n\n" + text.trim() + "\n";
       await this.app.vault.modify(file, content);
       return path;
     }
-    const p = dateKey.split("-");
+    const p = dateKey.split("-") as [string, string, string];
     const y = +p[0];
     const m = +p[1];
     const d = +p[2];
     const header = "# " + d + " " + monthNameGen(m - 1) + " " + y;
     await ensureFolder(this.app, path);
-    await this.app.vault.create(path, header + "\n\n" + text.trim() + "\n");
+    await this.app.vault.create(path, header + "\n\n" + (rawText !== undefined ? rawText.trim() : text.trim()) + "\n");
     return path;
   }
 
@@ -105,12 +111,17 @@ export class JournalStore {
           await this.app.vault.modify(file, rebuildDay(header, blocks));
           return path;
         }
+        const rawText = this.getRawText(blocks, index);
         blocks.splice(index, 1);
         await this.app.vault.modify(file, rebuildDay(header, blocks));
-        return await this.addEntry(newDate, text);
+        return await this.addEntry(newDate, text, rawText);
       }
     }
     return await this.addEntry(newDate, text);
+  }
+
+  private getRawText(blocks: string[], index: number): string {
+    return cleanNoteTextForDisplay(blocks[index]);
   }
 
   /** Удаление записи дня. Возвращает true, если запись найдена и удалена. */
@@ -171,7 +182,9 @@ function splitDayFile(content: string): { header: string; blocks: string[] } {
 
 /** Сборка файла дня из шапки и блоков записей. */
 function rebuildDay(header: string, blocks: string[]): string {
-  const body = blocks.map((b) => b.trim()).filter(Boolean).join("\n\n---\n\n");
+  // Фильтруем пустые блоки, но сохраняем блоки с изображением
+  const filteredBlocks = blocks.map((b) => b.trim()).filter((b) => b.length > 0);
+  const body = filteredBlocks.join("\n\n---\n\n");
   if (!body) return (header ? header.trimEnd() : "") + "\n";
   return (header ? header.trimEnd() + "\n\n" : "") + body + "\n";
 }

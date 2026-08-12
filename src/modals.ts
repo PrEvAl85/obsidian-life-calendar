@@ -1,23 +1,364 @@
-import { App, Modal, Notice, TFile } from "obsidian";
+import { App, Modal, Notice, TFile, FuzzySuggestModal, MarkdownRenderer, Component } from "obsidian";
 import { addDays, formatKey, todayKey } from "./date";
 import { HEART_COLORS, JournalEntry, LifeEvent, LifeZone, ZONE_COLORS } from "./types";
 import { keyToDmy, weekdayName } from "./util";
 import { t } from "./i18n";
 import { ImportResult, InvalidBackupError } from "./import";
 
+/** Извлекает имена файлов из синтаксиса ![[filename]] в тексте. */
+function extractImageRefs(text: string): string[] {
+  const matches = text.match(/!\[\[([^\]]+)\]\]/g);
+  if (!matches) return [];
+  return matches.map((m) => m.slice(3, -2));
+}
+
+/** Находит TFile по пути или имени (basename) среди файлов-изображений в хранилище. */
+function findImageFile(app: App, nameOrPath: string): TFile | null {
+  const files = app.vault.getFiles().filter((f) => {
+    const ext = f.extension.toLowerCase();
+    return ["png", "jpg", "jpeg", "gif", "webp", "svg", "bmp"].includes(ext);
+  });
+  // Сначала ищем по полному пути
+  let file = files.find((f) => f.path === nameOrPath);
+  if (file) return file;
+  // Затем по basename (для обратной совместимости)
+  return files.find((f) => f.basename === nameOrPath) || null;
+}
+
+/** Кастомный suggest для [[wiki-links]] и ![[images]] в textarea модалок. */
+class WikiLinkSuggest {
+  private app: App;
+  private textarea: HTMLTextAreaElement;
+  private container: HTMLElement;
+  private suggestEl: HTMLElement | null = null;
+  private items: { title: string; path: string; isImage: boolean }[] = [];
+  private selectedIndex = -1;
+  private trigger: "link" | "image" | null = null;
+  private triggerStart = -1;
+  private isOpen = false;
+  private scrollHandler: (e: Event) => void;
+  private resizeHandler: (e: UIEvent) => void;
+
+  constructor(app: App, textarea: HTMLTextAreaElement, container: HTMLElement) {
+    this.app = app;
+    this.textarea = textarea;
+    this.container = container;
+    this.scrollHandler = this.positionSuggest.bind(this) as (e: Event) => void;
+    this.resizeHandler = this.positionSuggest.bind(this) as (e: UIEvent) => void;
+    this.bindEvents();
+  }
+
+  private bindEvents(): void {
+    this.textarea.addEventListener("input", () => this.onInput());
+    this.textarea.addEventListener("keydown", (e) => this.onKeydown(e));
+    this.textarea.addEventListener("focus", () => this.onInput());
+    this.textarea.addEventListener("blur", () => window.setTimeout(() => this.close(), 150));
+    document.addEventListener("click", (e: MouseEvent) => {
+      if (this.suggestEl && !this.suggestEl.contains(e.target as Node) && e.target !== this.textarea) {
+        this.close();
+      }
+    });
+  }
+
+  private onInput(): void {
+    const cursorPos = this.textarea.selectionStart;
+    const text = this.textarea.value;
+    // Ищем триггер [[ или ![[ перед курсором
+    const beforeCursor = text.slice(0, cursorPos);
+    const linkMatch = beforeCursor.match(/(\[\[)([^\]]*)$/);
+    const imageMatch = beforeCursor.match(/(!\[\[)([^\]]*)$/);
+
+    if (linkMatch) {
+      this.trigger = "link";
+      this.triggerStart = cursorPos - linkMatch[0].length;
+      void this.query(linkMatch[2]);
+    } else if (imageMatch) {
+      this.trigger = "image";
+      this.triggerStart = cursorPos - imageMatch[0].length;
+      void this.query(imageMatch[2]);
+    } else {
+      this.close();
+    }
+  }
+
+  private async query(filter: string): Promise<void> {
+    const files = this.app.vault.getMarkdownFiles();
+    const lowerFilter = filter.toLowerCase();
+    this.items = files
+      .map((f) => ({ title: f.basename, path: f.path, isImage: false }))
+      .filter((item) => item.title.toLowerCase().includes(lowerFilter))
+      .slice(0, 20);
+
+    if (this.trigger === "image") {
+      const imageFiles = this.app.vault.getFiles().filter((f) => {
+        const ext = f.extension.toLowerCase();
+        return ["png", "jpg", "jpeg", "gif", "webp", "svg", "bmp"].includes(ext);
+      });
+      this.items = imageFiles
+        .map((f) => ({ title: f.basename, path: f.path, isImage: true }))
+        .filter((item) => item.title.toLowerCase().includes(lowerFilter))
+        .slice(0, 20);
+    }
+
+    if (this.items.length > 0) {
+      this.open();
+    } else {
+      this.close();
+    }
+  }
+
+  private open(): void {
+    if (this.isOpen) {
+      this.render();
+      return;
+    }
+    this.isOpen = true;
+    this.selectedIndex = -1;
+
+    this.suggestEl = this.container.createDiv({ cls: "lc-suggest" });
+    this.positionSuggest();
+    this.render();
+
+    // Обновляем позицию при скролле/ресайзе
+    window.addEventListener("scroll", this.scrollHandler, true);
+    window.addEventListener("resize", this.resizeHandler, true);
+  }
+
+  private positionSuggest(): void {
+    if (!this.suggestEl) return;
+    const rect = this.textarea.getBoundingClientRect();
+    const containerRect = this.container.getBoundingClientRect();
+    this.suggestEl.style.top = `${rect.bottom - containerRect.top + 2}px`;
+    this.suggestEl.style.left = `${rect.left - containerRect.left}px`;
+    this.suggestEl.style.width = `${rect.width}px`;
+  }
+
+  private render(): void {
+    if (!this.suggestEl) return;
+    this.suggestEl.empty();
+    for (let i = 0; i < this.items.length; i++) {
+      const item = this.items[i];
+      const el = this.suggestEl.createDiv({ cls: "lc-suggest-item" });
+      el.setAttribute("data-index", i.toString());
+      if (i === this.selectedIndex) el.addClass("is-selected");
+      const prefix = this.trigger === "image" ? "![[" : "[[";
+      const suffix = "]]";
+      el.createSpan({ text: prefix + item.title + suffix });
+      el.addEventListener("click", () => this.select(i));
+      el.addEventListener("mouseenter", () => this.setSelected(i));
+    }
+  }
+
+  private setSelected(index: number): void {
+    this.selectedIndex = index;
+    this.render();
+  }
+
+  private select(index: number): void {
+    const item = this.items[index];
+    if (!item) return;
+    const prefix = this.trigger === "image" ? "![[" : "[[";
+    const suffix = "]]";
+    const insertText = prefix + item.title + suffix;
+
+    const start = this.triggerStart;
+    const end = this.textarea.selectionStart;
+    const before = this.textarea.value.slice(0, start);
+    const after = this.textarea.value.slice(end);
+    this.textarea.value = before + insertText + after;
+    this.textarea.selectionStart = this.textarea.selectionEnd = start + insertText.length;
+    this.textarea.focus();
+    this.close();
+    // Триггерим input для реактивности
+    this.textarea.dispatchEvent(new Event("input", { bubbles: true }));
+  }
+
+  private onKeydown(e: KeyboardEvent): void {
+    if (!this.isOpen || this.items.length === 0) return;
+    if (e.key === "ArrowDown") {
+      e.preventDefault();
+      this.setSelected(Math.min(this.selectedIndex + 1, this.items.length - 1));
+    } else if (e.key === "ArrowUp") {
+      e.preventDefault();
+      this.setSelected(Math.max(this.selectedIndex - 1, 0));
+    } else if (e.key === "Enter") {
+      e.preventDefault();
+      if (this.selectedIndex >= 0) this.select(this.selectedIndex);
+    } else if (e.key === "Escape") {
+      e.preventDefault();
+      this.close();
+    }
+  }
+
+  private close(): void {
+    if (!this.isOpen) return;
+    this.isOpen = false;
+    if (this.suggestEl) {
+      this.suggestEl.remove();
+      this.suggestEl = null;
+    }
+    window.removeEventListener("scroll", this.scrollHandler, true);
+    window.removeEventListener("resize", this.resizeHandler, true);
+  }
+}
+
+/** Модалка выбора изображения: из хранилища или с компьютера. */
+export class ImageSelectModal extends Modal {
+  private activeTab: "vault" | "computer" = "vault";
+  private onSelect: (embedSyntax: string) => void;
+  private attachmentsFolder: string;
+
+  constructor(
+    app: App,
+    onSelect: (embedSyntax: string) => void,
+    journalFolder: string,
+  ) {
+    super(app);
+    this.onSelect = onSelect;
+    this.attachmentsFolder = `${journalFolder}/Attachments`;
+  }
+
+  onOpen(): void {
+    const { contentEl } = this;
+    contentEl.addClass("lc-modal");
+    contentEl.createEl("h3", { text: t("imageSelectTitle") });
+
+    // Tab buttons
+    const tabBar = contentEl.createDiv({ cls: "lc-image-tabs" });
+    const vaultTab = tabBar.createEl("button", {
+      type: "button",
+      cls: "lc-image-tab active",
+      text: t("imageFromVault"),
+    });
+    const computerTab = tabBar.createEl("button", {
+      type: "button",
+      cls: "lc-image-tab",
+      text: t("imageFromComputer"),
+    });
+
+    const tabContent = contentEl.createDiv({ cls: "lc-image-tab-content" });
+
+    const switchTab = (tab: "vault" | "computer") => {
+      this.activeTab = tab;
+      vaultTab.toggleClass("active", tab === "vault");
+      computerTab.toggleClass("active", tab === "computer");
+      tabContent.empty();
+      if (tab === "vault") this.renderVaultTab(tabContent);
+      else this.renderComputerTab(tabContent);
+    };
+
+    vaultTab.addEventListener("click", () => switchTab("vault"));
+    computerTab.addEventListener("click", () => switchTab("computer"));
+
+    // Initial render
+    this.renderVaultTab(tabContent);
+  }
+
+  private renderVaultTab(container: HTMLElement): void {
+    const onSelect = this.onSelect.bind(this) as (embedSyntax: string) => void;
+    const closeModal = this.close.bind(this) as () => void;
+    new (class extends FuzzySuggestModal<TFile> {
+      constructor(app: App) { super(app); }
+      getItems(): TFile[] {
+        return this.app.vault.getFiles().filter((f) => {
+          const ext = f.extension.toLowerCase();
+          return ["png", "jpg", "jpeg", "gif", "webp", "svg", "bmp"].includes(ext);
+        });
+      }
+      getItemText(file: TFile): string { return file.path; }
+      onChooseItem(file: TFile): void {
+        this.close();
+        onSelect(`![[${file.path}]]`);
+        closeModal();
+      }
+    })(this.app).open();
+  }
+
+  private renderComputerTab(container: HTMLElement): void {
+    const dropZone = container.createDiv({ cls: "lc-image-dropzone" });
+    dropZone.createSpan({ text: t("imageDropZone") });
+
+    const fileInput = dropZone.createEl("input", {
+      type: "file",
+      attr: { accept: "image/png,image/jpeg,image/gif,image/webp,image/svg+xml,image/bmp" },
+      cls: "lc-hidden",
+    });
+
+    dropZone.addEventListener("click", () => fileInput.click());
+    dropZone.addEventListener("dragover", (e) => {
+      e.preventDefault();
+      dropZone.addClass("dragover");
+    });
+    dropZone.addEventListener("dragleave", () => dropZone.removeClass("dragover"));
+    dropZone.addEventListener("drop", (e) => {
+      e.preventDefault();
+      dropZone.removeClass("dragover");
+      const file = e.dataTransfer?.files[0];
+      if (file) void this.handleFile(file);
+    });
+    fileInput.addEventListener("change", () => {
+      const file = fileInput.files?.[0];
+      if (file) void this.handleFile(file);
+      fileInput.value = "";
+    });
+  }
+
+  private async handleFile(file: File): Promise<void> {
+    if (!file.type.startsWith("image/")) {
+      new Notice(t("imageImportError", { error: "Not an image file" }));
+      return;
+    }
+
+    const notice = new Notice(t("imageImporting"), 0);
+
+    try {
+      // Убеждаемся, что папка существует
+      const folder = this.app.vault.getAbstractFileByPath(this.attachmentsFolder);
+      if (!folder) {
+        await this.app.vault.createFolder(this.attachmentsFolder);
+      }
+
+      // Генерируем уникальное имя файла
+      const timestamp = Date.now();
+      const ext = file.name.split(".").pop() || "png";
+      const fileName = `${file.name.replace(/\.[^/.]+$/, "")}_${timestamp}.${ext}`;
+      const filePath = `${this.attachmentsFolder}/${fileName}`;
+
+      // Читаем файл как ArrayBuffer и сохраняем в vault
+      const arrayBuffer = await file.arrayBuffer();
+      await this.app.vault.createBinary(filePath, new Uint8Array(arrayBuffer));
+
+      // Вставляем embed с правильным путем
+      this.onSelect(`![[${filePath}]]`);
+      this.close();
+      notice.hide();
+    } catch (err: unknown) {
+      notice.hide();
+      new Notice(t("imageImportError", { error: err instanceof Error ? err.message : String(err) }));
+    }
+  }
+
+  onClose(): void {
+    this.contentEl.empty();
+  }
+}
+
 /** Модалка добавления записи в дневник. */
 export class AddEntryModal extends Modal {
   private dateValue: string;
   private saveHandler: (date: string, text: string) => Promise<void>;
+  private journalFolder: string;
 
   constructor(
     app: App,
     defaultDate: string,
     saveHandler: (date: string, text: string) => Promise<void>,
+    journalFolder: string = "Life Calendar/Journal",
   ) {
     super(app);
     this.dateValue = defaultDate;
     this.saveHandler = saveHandler;
+    this.journalFolder = journalFolder;
   }
 
   onOpen(): void {
@@ -35,9 +376,61 @@ export class AddEntryModal extends Modal {
 
     const textWrap = contentEl.createDiv({ cls: "lc-modal-field" });
     textWrap.createEl("label", { text: t("text") });
+
+    // Toolbar для вставки ссылок и изображений
+    const toolbar = textWrap.createDiv({ cls: "lc-modal-toolbar" });
+    const linkBtn = toolbar.createEl("button", { type: "button", cls: "lc-modal-toolbar-btn", text: "🔗 " + t("insertLink") });
+    const imageBtn = toolbar.createEl("button", { type: "button", cls: "lc-modal-toolbar-btn", text: "🖼 " + t("insertImage") });
+
     const ta = textWrap.createEl("textarea", {
       cls: "lc-modal-textarea",
       attr: { rows: "6", placeholder: t("entryTextPlaceholder") },
+    });
+
+    // Контейнер для превью изображений
+    const previewContainer = textWrap.createDiv({ cls: "lc-modal-preview" });
+
+    // WikiLinkSuggest для автодополнения [[ и ![[
+    new WikiLinkSuggest(this.app, ta, textWrap);
+
+    // Обновление превью при вводе
+    const updatePreview = () => {
+      previewContainer.empty();
+      const refs = extractImageRefs(ta.value);
+      for (const ref of refs) {
+        const file = findImageFile(this.app, ref);
+        if (file) {
+          const imgEl = previewContainer.createEl("img", { cls: "lc-modal-preview-img", attr: { src: this.app.vault.getResourcePath(file) } });
+          imgEl.title = ref;
+        }
+      }
+      previewContainer.toggleClass("has-content", refs.length > 0);
+    };
+    ta.addEventListener("input", updatePreview);
+
+    // Обработчики кнопок тулбара
+    const insertAtCursor = (text: string) => {
+      const start = ta.selectionStart;
+      const end = ta.selectionEnd;
+      ta.value = ta.value.slice(0, start) + text + ta.value.slice(end);
+      ta.selectionStart = ta.selectionEnd = start + text.length;
+      ta.focus();
+      ta.dispatchEvent(new Event("input", { bubbles: true }));
+    };
+
+    linkBtn.addEventListener("click", () => {
+      new (class extends FuzzySuggestModal<TFile> {
+        constructor(app: App) { super(app); }
+        getItems(): TFile[] { return this.app.vault.getMarkdownFiles(); }
+        getItemText(file: TFile): string { return file.basename; }
+        onChooseItem(file: TFile): void { insertAtCursor("[[" + file.basename + "]]"); }
+      })(this.app).open();
+    });
+
+imageBtn.addEventListener("click", () => {
+      new ImageSelectModal(this.app, (embedSyntax) => {
+        insertAtCursor(embedSyntax);
+      }, this.journalFolder).open();
     });
 
     const row = contentEl.createDiv({ cls: "lc-modal-row" });
@@ -447,31 +840,34 @@ export interface WeekHandlers {
 export class WeekModal extends Modal {
   private entries: JournalEntry[] = [];
   private events: LifeEvent[] = [];
+  private journalFolder: string;
 
   constructor(
     app: App,
     private weekKey: string,
     private load: () => Promise<{ entries: JournalEntry[]; events: LifeEvent[] }>,
     private handlers: WeekHandlers,
+    journalFolder: string = "Life Calendar/Journal",
   ) {
     super(app);
+    this.journalFolder = journalFolder;
   }
 
   async onOpen(): Promise<void> {
     const data = await this.load();
     this.entries = data.entries;
     this.events = data.events;
-    this.render();
+    await this.render();
   }
 
   private async reload(): Promise<void> {
     const data = await this.load();
     this.entries = data.entries;
     this.events = data.events;
-    this.render();
+    await this.render();
   }
 
-  private render(): void {
+  private async render(): Promise<void> {
     const { contentEl } = this;
     contentEl.empty();
     contentEl.addClass("lc-modal");
@@ -530,7 +926,7 @@ export class WeekModal extends Modal {
       editBtn.title = t("edit");
       editBtn.addEventListener("click", () => {
         void (async () => {
-          const m = new EntryEditModal(this.app, { date: e.date, text: e.text });
+          const m = new EntryEditModal(this.app, { date: e.date, text: e.text, rawText: e.rawText }, this.journalFolder);
           m.open();
           const res = await m.awaitResult();
           if (res) {
@@ -547,7 +943,11 @@ export class WeekModal extends Modal {
           await this.reload();
         })();
       });
-      item.createDiv({ cls: "lc-week-item-text", text: e.text });
+      // Рендерим текст через MarkdownRenderer для поддержки [[wiki-links]] и ![[images]]
+      const rendered = item.createDiv({ cls: "lc-week-item-rendered" });
+      const renderComponent = new Component();
+      renderComponent.load(); // Инициализируем компонент
+      await MarkdownRenderer.render(this.app, e.rawText || e.text, rendered, e.path, renderComponent);
     }
     if (!this.entries.length) eList.createDiv({ cls: "lc-week-empty", text: t("noEntries") });
 
@@ -633,12 +1033,15 @@ export class EntryEditModal extends Modal {
   private result: { date: string; text: string } | null = null;
   private resolveFn: ((v: { date: string; text: string } | null) => void) | null = null;
   private promise: Promise<{ date: string; text: string } | null>;
+  private journalFolder: string;
 
-  constructor(
+   constructor(
     app: App,
-    private initial: { date: string; text: string },
+    private initial: { date: string; text: string; rawText?: string; path?: string; index?: number; blocks?: number },
+    journalFolder: string = "Life Calendar/Journal",
   ) {
     super(app);
+    this.journalFolder = journalFolder;
     this.promise = new Promise((resolve) => {
       this.resolveFn = resolve;
     });
@@ -665,11 +1068,65 @@ export class EntryEditModal extends Modal {
 
     const textWrap = contentEl.createDiv({ cls: "lc-modal-field" });
     textWrap.createEl("label", { text: t("text") });
+
+    // Toolbar для вставки ссылок и изображений
+    const toolbar = textWrap.createDiv({ cls: "lc-modal-toolbar" });
+    const linkBtn = toolbar.createEl("button", { type: "button", cls: "lc-modal-toolbar-btn", text: "🔗 " + t("insertLink") });
+    const imageBtn = toolbar.createEl("button", { type: "button", cls: "lc-modal-toolbar-btn", text: "🖼 " + t("insertImage") });
+
     const ta = textWrap.createEl("textarea", {
       cls: "lc-modal-textarea",
       attr: { rows: "6", placeholder: t("entryTextPlaceholder") },
     });
-    ta.value = this.initial.text;
+    ta.value = this.initial.rawText ?? this.initial.text;
+
+    // Контейнер для превью изображений
+    const previewContainer = textWrap.createDiv({ cls: "lc-modal-preview" });
+
+    // WikiLinkSuggest для автодополнения [[ и ![[
+    new WikiLinkSuggest(this.app, ta, textWrap);
+
+    // Обновление превью при вводе
+    const updatePreview = () => {
+      previewContainer.empty();
+      const refs = extractImageRefs(ta.value);
+      for (const ref of refs) {
+        const file = findImageFile(this.app, ref);
+        if (file) {
+          const imgEl = previewContainer.createEl("img", { cls: "lc-modal-preview-img", attr: { src: this.app.vault.getResourcePath(file) } });
+          imgEl.title = ref;
+        }
+      }
+      previewContainer.toggleClass("has-content", refs.length > 0);
+    };
+    ta.addEventListener("input", updatePreview);
+    // Инициализация превью для начального текста
+    updatePreview();
+
+    // Обработчики кнопок тулбара
+    const insertAtCursor = (text: string) => {
+      const start = ta.selectionStart;
+      const end = ta.selectionEnd;
+      ta.value = ta.value.slice(0, start) + text + ta.value.slice(end);
+      ta.selectionStart = ta.selectionEnd = start + text.length;
+      ta.focus();
+      ta.dispatchEvent(new Event("input", { bubbles: true }));
+    };
+
+    linkBtn.addEventListener("click", () => {
+      new (class extends FuzzySuggestModal<TFile> {
+        constructor(app: App) { super(app); }
+        getItems(): TFile[] { return this.app.vault.getMarkdownFiles(); }
+        getItemText(file: TFile): string { return file.basename; }
+        onChooseItem(file: TFile): void { insertAtCursor("[[" + file.basename + "]]"); }
+      })(this.app).open();
+    });
+
+imageBtn.addEventListener("click", () => {
+      new ImageSelectModal(this.app, (embedSyntax) => {
+        insertAtCursor(embedSyntax);
+      }, this.journalFolder).open();
+    });
 
     const row = contentEl.createDiv({ cls: "lc-modal-row" });
     row.createEl("button", { cls: "lc-modal-cancel", text: t("cancel") }).addEventListener("click", () => this.finish(null));

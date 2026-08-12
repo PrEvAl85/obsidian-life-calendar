@@ -55,7 +55,7 @@ export function escRe(s: string): string {
   return s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
 
-/** Извлечение текста записи дня: убирает frontmatter, H1, раздел «Источник», разделители. */
+/** Извлечение текста записи дня: убирает frontmatter, H1, раздел «Источник», разделители, вики-ссылки и изображения. */
 export function cleanNoteText(content: string): string {
   let text = content.replace(/^\s*<!--.*?-->\s*/s, "");
   const fm = /^---\s*\n.*?\n---\s*\n?/s.exec(text);
@@ -67,6 +67,20 @@ export function cleanNoteText(content: string): string {
   text = text.replace(/\[\[([^\]|]+)\|([^\]]+)\]\]/g, "$2");
   text = text.replace(/\[\[([^\]]+)\]\]/g, (_, x: string) => x.split("#", 1)[0].trim());
   text = text.replace(/(?<![\w])#[\wа-яё][\wа-яё-]*/g, "");
+  text = text.replace(/^[ \t]+/gm, "");
+  text = text.replace(/[ \t]+/g, " ");
+  text = text.replace(/\n\s*\n\s*\n+/g, "\n\n");
+  return text.trim();
+}
+
+/** Извлечение текста для отображения: сохраняет вики-ссылки [[...]] и изображения ![[...]]. */
+export function cleanNoteTextForDisplay(content: string): string {
+  let text = content.replace(/^\s*<!--.*?-->\s*/s, "");
+  const fm = /^---\s*\n.*?\n---\s*\n?/s.exec(text);
+  if (fm) text = text.slice(fm[0].length);
+  text = text.replace(/^#\s+[^\n]*\n+/m, "");
+  text = text.replace(/(^|\n)##\s+(Источник|Source)[^\n]*(?:\n[ \t]*-[^\n]*)*\n*/g, "");
+  text = text.replace(/^[ \t]*---\s*$/gm, "\n");
   text = text.replace(/^[ \t]+/gm, "");
   text = text.replace(/[ \t]+/g, " ");
   text = text.replace(/\n\s*\n\s*\n+/g, "\n\n");

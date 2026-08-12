@@ -45,7 +45,7 @@ export class WeekStore {
         lines.push(`### ${keyToDmy(date)} (${weekdayName(date)})`, "");
         const list = byDate.get(date)!;
         for (let i = 0; i < list.length; i++) {
-          lines.push(list[i].text.trim(), "");
+          lines.push((list[i].rawText || list[i].text).trim(), "");
           if (i < list.length - 1) lines.push("---", "");
         }
       }

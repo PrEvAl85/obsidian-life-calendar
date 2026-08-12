@@ -49,6 +49,14 @@ const ru = {
   enterEventTitle: "Введите название события",
   noBirthDate: "Укажите дату рождения в настройках плагина.",
   invalidBirthDate: "Неверная дата рождения.",
+  insertLink: "Ссылка",
+  insertImage: "Изображение",
+  imageFromVault: "Из хранилища",
+  imageFromComputer: "С компьютера",
+  imageSelectTitle: "Выбор изображения",
+  imageDropZone: "Перетащите файл сюда или нажмите для выбора",
+  imageImporting: "Импорт изображения…",
+  imageImportError: "Ошибка импорта изображения: {error}",
 
   // Онбординг
   welcome:
@@ -198,6 +206,14 @@ const en: Dict = {
   enterEventTitle: "Please enter event title",
   noBirthDate: "Set your birth date in plugin settings.",
   invalidBirthDate: "Invalid birth date.",
+  insertLink: "Link",
+  insertImage: "Image",
+  imageFromVault: "From vault",
+  imageFromComputer: "From computer",
+  imageSelectTitle: "Select image",
+  imageDropZone: "Drag file here or click to choose",
+  imageImporting: "Importing image…",
+  imageImportError: "Image import error: {error}",
 
   welcome:
     "Welcome! To build your life calendar, enter your birth date. " +

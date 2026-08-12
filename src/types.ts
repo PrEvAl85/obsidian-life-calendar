@@ -20,6 +20,7 @@ export interface LifeCalendarSettings {
 export interface JournalEntry {
   date: string;
   text: string;
+  rawText?: string;
   path: string;
   /** Индекс записи внутри файла дня (блоки, разделённые `---`). */
   index: number;
