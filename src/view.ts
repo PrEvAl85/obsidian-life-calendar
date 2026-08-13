@@ -3,7 +3,7 @@ import LifeCalendarPlugin from "./main";
 import { HEART_COLORS, RING_COLORS, JournalEntry, LifeEvent, LifeZone, WeekStyle } from "./types";
 import { keyToDmy, dmyToKey, weekdayName, weekKeyOf } from "./util";
 import { addDays, addYears, diffDays, diffYears, formatKey, isValidKey, mondayKeyOf, monthDayOf, todayKey, yearOf } from "./date";
-import { AddEntryModal, EventsModal, ImportModal, WeekModal, ZonesModal } from "./modals";
+import { AddEntryModal, EventsModal, FeedModal, ImportModal, WeekModal, ZonesModal } from "./modals";
 import { t } from "./i18n";
 
 export const VIEW_TYPE_LIFE_CALENDAR = "life-calendar-view";
@@ -97,6 +97,8 @@ export class LifeCalendarView extends ItemView {
     evBtn.type = "button";
     const zoneBtn = tool.createEl("button", { cls: "add-btn", text: t("zonesBtn") });
     zoneBtn.type = "button";
+    const feedBtn = tool.createEl("button", { cls: "add-btn", text: t("feedBtn") });
+    feedBtn.type = "button";
     const expBtn = tool.createEl("button", { cls: "add-btn", text: t("exportBtn") });
     expBtn.type = "button";
     const impBtn = tool.createEl("button", { cls: "add-btn", text: t("importBtn") });
@@ -229,7 +231,7 @@ export class LifeCalendarView extends ItemView {
 
     this.renderZoneBands(wrap, s.zones);
     this.attachTooltip(grid, srcCache);
-    this.attachClicks(grid, addBtn, evBtn, zoneBtn, expBtn, impBtn);
+    this.attachClicks(grid, addBtn, evBtn, zoneBtn, feedBtn, expBtn, impBtn);
   }
 
   private renderZoneBands(wrap: HTMLElement, zones: LifeZone[]): void {
@@ -420,6 +422,7 @@ export class LifeCalendarView extends ItemView {
     addBtn: HTMLElement,
     evBtn: HTMLElement,
     zoneBtn: HTMLElement,
+    feedBtn: HTMLElement,
     expBtn: HTMLElement,
     impBtn: HTMLElement,
   ): void {
@@ -450,6 +453,25 @@ export class LifeCalendarView extends ItemView {
           await this.plugin.saveSettings();
           await this.render();
         },
+      ).open();
+    });
+
+    feedBtn.addEventListener("click", () => {
+      new FeedModal(
+        this.app,
+        () => this.plugin.journal.listAll(),
+        {
+          updateEntry: async (oldDate, index, newDate, text) => {
+            await this.plugin.journal.updateEntry(oldDate, index, newDate, text);
+          },
+          deleteEntry: async (date, index) => {
+            await this.plugin.journal.deleteEntry(date, index);
+          },
+          moveEntry: async (date, index, dir) => {
+            await this.plugin.journal.moveEntry(date, index, dir);
+          },
+        },
+        this.plugin.settings.journalFolder,
       ).open();
     });
 

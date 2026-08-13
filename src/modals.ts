@@ -2,7 +2,7 @@ import { App, Modal, Notice, TFile, FuzzySuggestModal, MarkdownRenderer, Compone
 import { addDays, formatKey, todayKey } from "./date";
 import { HEART_COLORS, JournalEntry, LifeEvent, LifeZone, ZONE_COLORS } from "./types";
 import { keyToDmy, weekdayName } from "./util";
-import { t } from "./i18n";
+import { t, monthNameGen } from "./i18n";
 import { ImportResult, InvalidBackupError } from "./import";
 
 /** Извлекает имена файлов из синтаксиса ![[filename]] в тексте. */
@@ -1024,6 +1024,333 @@ export class WeekModal extends Modal {
   }
 
   onClose(): void {
+    this.contentEl.empty();
+  }
+}
+
+/** Интерфейс для обработчиков операций в Feed. */
+export interface FeedHandlers {
+  updateEntry: (oldDate: string, index: number, newDate: string, text: string) => Promise<void>;
+  deleteEntry: (date: string, index: number) => Promise<void>;
+  moveEntry: (date: string, index: number, dir: -1 | 1) => Promise<void>;
+}
+
+/** Модалка «Поток» (Feed): хронологический список всех записей с группировкой, фильтрацией и CRUD. */
+export class FeedModal extends Modal {
+  private allEntries: JournalEntry[] = [];
+  private filteredEntries: JournalEntry[] = [];
+  private searchQuery = "";
+  private dateFrom = "";
+  private dateTo = "";
+  private hasImagesOnly = false;
+  private sortDescending = true; // true = новые сверху (desc), false = старые сверху (asc)
+  private journalFolder: string;
+  private handlers: FeedHandlers;
+  private listContainer: HTMLElement | null = null;
+  private debounceTimer: number | null = null;
+
+  constructor(
+    app: App,
+    private loadEntries: () => Promise<JournalEntry[]>,
+    handlers: FeedHandlers,
+    journalFolder: string = "Life Calendar/Journal",
+  ) {
+    super(app);
+    this.handlers = handlers;
+    this.journalFolder = journalFolder;
+  }
+
+  onOpen(): void {
+    const { contentEl } = this;
+    contentEl.empty();
+    contentEl.addClass("lc-modal", "lc-feed-modal");
+
+    // Заголовок
+    contentEl.createEl("h3", { text: t("feedTitle") });
+
+    // Панель фильтров
+    this.renderFilterBar(contentEl);
+
+    // Контейнер списка
+    this.listContainer = contentEl.createDiv({ cls: "lc-feed-list" });
+
+    // Загружаем записи
+    void (async () => {
+      await this.loadAndRender();
+    })();
+  }
+
+  private renderFilterBar(container: HTMLElement): void {
+    const filterBar = container.createDiv({ cls: "lc-feed-filter-bar" });
+
+    // Поиск
+    const searchWrap = filterBar.createDiv({ cls: "lc-feed-filter-item" });
+    searchWrap.createEl("label", { text: t("feedSearchPlaceholder"), cls: "lc-feed-filter-label" });
+    const searchInput = searchWrap.createEl("input", {
+      type: "text",
+      cls: "lc-feed-search-input",
+      attr: { placeholder: t("feedSearchPlaceholder") },
+    });
+    searchInput.addEventListener("input", () => {
+      this.searchQuery = searchInput.value.trim().toLowerCase();
+      this.debouncedRender();
+    });
+
+    // Дата «С»
+    const fromWrap = filterBar.createDiv({ cls: "lc-feed-filter-item" });
+    fromWrap.createEl("label", { text: t("feedFilterDateFrom"), cls: "lc-feed-filter-label" });
+    const fromInput = fromWrap.createEl("input", { type: "date", cls: "lc-feed-date-input" });
+    fromInput.addEventListener("change", () => {
+      this.dateFrom = fromInput.value;
+      this.debouncedRender();
+    });
+
+    // Дата «По»
+    const toWrap = filterBar.createDiv({ cls: "lc-feed-filter-item" });
+    toWrap.createEl("label", { text: t("feedFilterDateTo"), cls: "lc-feed-filter-label" });
+    const toInput = toWrap.createEl("input", { type: "date", cls: "lc-feed-date-input" });
+    toInput.addEventListener("change", () => {
+      this.dateTo = toInput.value;
+      this.debouncedRender();
+    });
+
+    // Чекбокс «Только с изображениями»
+    const imagesWrap = filterBar.createDiv({ cls: "lc-feed-filter-item lc-feed-filter-checkbox" });
+    const imagesCheckbox = imagesWrap.createEl("input", { type: "checkbox", cls: "lc-feed-checkbox" });
+    imagesCheckbox.addEventListener("change", () => {
+      this.hasImagesOnly = imagesCheckbox.checked;
+      this.debouncedRender();
+    });
+    imagesWrap.createEl("label", { text: t("feedFilterHasImages"), cls: "lc-feed-filter-label" });
+
+    // Переключатель сортировки
+    const sortWrap = filterBar.createDiv({ cls: "lc-feed-filter-item lc-feed-filter-sort" });
+    sortWrap.createEl("label", { text: this.sortDescending ? t("feedSortNewest") : t("feedSortOldest"), cls: "lc-feed-filter-label" });
+    const sortBtn = sortWrap.createEl("button", {
+      type: "button",
+      cls: "lc-feed-sort-btn",
+      text: this.sortDescending ? "⬇" : "⬆",
+    });
+    sortBtn.title = this.sortDescending ? t("feedSortOldest") : t("feedSortNewest");
+    sortBtn.addEventListener("click", () => {
+      this.sortDescending = !this.sortDescending;
+      sortBtn.textContent = this.sortDescending ? "⬇" : "⬆";
+      sortBtn.title = this.sortDescending ? t("feedSortOldest") : t("feedSortNewest");
+      sortWrap.querySelector("label")!.textContent = this.sortDescending ? t("feedSortNewest") : t("feedSortOldest");
+      this.debouncedRender();
+    });
+  }
+
+  private debouncedRender(): void {
+    if (this.debounceTimer !== null) window.clearTimeout(this.debounceTimer);
+    this.debounceTimer = window.setTimeout(() => {
+      this.debounceTimer = null;
+      this.applyFiltersAndRender();
+    }, 150);
+  }
+
+  private async loadAndRender(): Promise<void> {
+    this.allEntries = await this.loadEntries();
+    this.applyFiltersAndRender();
+  }
+
+  private applyFiltersAndRender(): void {
+    // Фильтрация
+    this.filteredEntries = this.allEntries.filter((entry) => {
+      // Текстовый поиск
+      if (this.searchQuery) {
+        const text = (entry.rawText || entry.text).toLowerCase();
+        if (!text.includes(this.searchQuery)) return false;
+      }
+      // Диапазон дат
+      if (this.dateFrom && entry.date < this.dateFrom) return false;
+      if (this.dateTo && entry.date > this.dateTo) return false;
+      // Только с изображениями
+      if (this.hasImagesOnly) {
+        const hasImage = /!\[\[[^\]]+\]\]/.test(entry.rawText || entry.text);
+        if (!hasImage) return false;
+      }
+      return true;
+    });
+
+    // Сортировка
+    this.filteredEntries.sort((a, b) => {
+      const cmp = a.date.localeCompare(b.date);
+      if (cmp !== 0) return this.sortDescending ? -cmp : cmp;
+      // При одинаковой дате — по индексу
+      return this.sortDescending ? b.index - a.index : a.index - b.index;
+    });
+
+    this.renderList();
+  }
+
+  private renderList(): void {
+    if (!this.listContainer) return;
+    const container = this.listContainer;
+    container.empty();
+
+    if (this.filteredEntries.length === 0) {
+      container.createDiv({ cls: "lc-feed-empty", text: t("feedNoEntries") });
+      return;
+    }
+
+    // Группировка: Год → Месяц → День
+    const groups = new Map<string, Map<string, JournalEntry[]>>(); // year -> month -> entries[]
+
+    for (const entry of this.filteredEntries) {
+      const year = entry.date.slice(0, 4);
+      const month = entry.date.slice(5, 7); // "MM"
+      if (!groups.has(year)) groups.set(year, new Map());
+      const yearMap = groups.get(year)!;
+      if (!yearMap.has(month)) yearMap.set(month, []);
+      yearMap.get(month)!.push(entry);
+    }
+
+    // Рендерим дерево
+    for (const [year, yearMap] of groups) {
+      const yearEl = container.createDiv({ cls: "lc-feed-group lc-feed-year" });
+      yearEl.createDiv({ cls: "lc-feed-group-header", text: `${t("feedGroupYear")} ${year}` });
+
+      // Месяцы в году: сортируем по убыванию (новые месяцы сверху) или возрастанию
+      const sortedMonths = Array.from(yearMap.keys()).sort((a, b) =>
+        this.sortDescending ? b.localeCompare(a) : a.localeCompare(b)
+      );
+
+      for (const month of sortedMonths) {
+        const monthEntries = yearMap.get(month)!;
+        const monthEl = yearEl.createDiv({ cls: "lc-feed-group lc-feed-month" });
+        const monthName = this.getMonthName(+month);
+        monthEl.createDiv({ cls: "lc-feed-group-header", text: `${t("feedGroupMonth")} ${monthName}` });
+
+        // Группируем по дням внутри месяца
+        const dayGroups = new Map<string, JournalEntry[]>();
+        for (const entry of monthEntries) {
+          const day = entry.date.slice(8, 10); // "DD"
+          if (!dayGroups.has(day)) dayGroups.set(day, []);
+          dayGroups.get(day)!.push(entry);
+        }
+
+        // Дни в месяце: сортируем
+        const sortedDays = Array.from(dayGroups.keys()).sort((a, b) =>
+          this.sortDescending ? b.localeCompare(a) : a.localeCompare(b)
+        );
+
+        for (const day of sortedDays) {
+          const dayEntries = dayGroups.get(day)!;
+          const dateKey = `${year}-${month}-${day}`;
+          const dayEl = monthEl.createDiv({ cls: "lc-feed-group lc-feed-day" });
+          const weekday = weekdayName(dateKey);
+          dayEl.createDiv({
+            cls: "lc-feed-group-header lc-feed-day-header",
+            text: t("feedEntryDateFormat", { date: day + "." + month + "." + year, weekday }),
+          });
+
+          // Карточки записей дня
+          const entriesEl = dayEl.createDiv({ cls: "lc-feed-entries" });
+          for (const entry of dayEntries) {
+            this.renderEntryCard(entriesEl, entry);
+          }
+        }
+      }
+    }
+  }
+
+  private getMonthName(monthIndex: number): string {
+    // monthIndex: 1-12
+    return monthNameGen(monthIndex - 1);
+  }
+
+  private renderEntryCard(container: HTMLElement, entry: JournalEntry): void {
+    const card = container.createDiv({ cls: "lc-feed-entry-card", attr: { "data-date": entry.date, "data-index": String(entry.index) } });
+
+    // Заголовок карточки с действиями
+    const header = card.createDiv({ cls: "lc-feed-entry-header" });
+    const actions = header.createDiv({ cls: "lc-feed-entry-actions" });
+
+    // Кнопка вверх
+    if (entry.index > 0) {
+      const upBtn = actions.createEl("button", { cls: "lc-feed-action-btn", text: "▲", attr: { title: t("feedMoveUpTooltip") } });
+      upBtn.addEventListener("click", () => {
+        void (async () => {
+          await this.handlers.moveEntry(entry.date, entry.index, -1);
+          await this.refresh();
+        })();
+      });
+    }
+
+    // Кнопка вниз
+    if (entry.index < entry.blocks - 1) {
+      const downBtn = actions.createEl("button", { cls: "lc-feed-action-btn", text: "▼", attr: { title: t("feedMoveDownTooltip") } });
+      downBtn.addEventListener("click", () => {
+        void (async () => {
+          await this.handlers.moveEntry(entry.date, entry.index, 1);
+          await this.refresh();
+        })();
+      });
+    }
+
+    // Кнопка редактирования
+    const editBtn = actions.createEl("button", { cls: "lc-feed-action-btn", text: "✏️", attr: { title: t("feedEditTooltip") } });
+    editBtn.addEventListener("click", () => {
+      void (async () => {
+        const modal = new EntryEditModal(this.app, {
+          date: entry.date,
+          text: entry.text,
+          rawText: entry.rawText,
+          path: entry.path,
+          index: entry.index,
+          blocks: entry.blocks,
+        }, this.journalFolder);
+        modal.open();
+        const res = await modal.awaitResult();
+        if (res) {
+          await this.handlers.updateEntry(entry.date, entry.index, res.date, res.text);
+          await this.refresh();
+        }
+      })();
+    });
+
+    // Кнопка удаления
+    const delBtn = actions.createEl("button", { cls: "lc-feed-action-btn", text: "🗑", attr: { title: t("feedDeleteTooltip") } });
+    delBtn.addEventListener("click", () => {
+      void this.confirmDelete(() => {
+        void (async () => {
+          await this.handlers.deleteEntry(entry.date, entry.index);
+          await this.refresh();
+        })();
+      });
+    });
+
+    // Текст записи (рендерим через MarkdownRenderer для поддержки вики-ссылок и изображений)
+    const rendered = card.createDiv({ cls: "lc-feed-entry-content" });
+    const renderComponent = new Component();
+    renderComponent.load();
+    void MarkdownRenderer.render(this.app, entry.rawText || entry.text, rendered, entry.path, renderComponent);
+  }
+
+  private confirmDelete(onConfirm: () => void): void {
+    const modal = new (class extends Modal {
+      onOpen(): void {
+        this.contentEl.addClass("lc-modal");
+        this.contentEl.createEl("p", { text: t("feedConfirmDelete") });
+        const row = this.contentEl.createDiv({ cls: "lc-modal-row" });
+        row.createEl("button", { cls: "lc-modal-cancel", text: t("cancel") }).addEventListener("click", () => this.close());
+        row.createEl("button", { cls: "mod-cta mod-warning", text: t("delete") }).addEventListener("click", () => {
+          this.close();
+          onConfirm();
+        });
+      }
+    })(this.app);
+    modal.open();
+  }
+
+  private async refresh(): Promise<void> {
+    this.allEntries = await this.loadEntries();
+    this.applyFiltersAndRender();
+  }
+
+  onClose(): void {
+    if (this.debounceTimer !== null) window.clearTimeout(this.debounceTimer);
     this.contentEl.empty();
   }
 }

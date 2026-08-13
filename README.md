@@ -41,6 +41,7 @@ All paths are configurable in the plugin settings.
 - **🎨 Life zones**: mark periods of life (e.g. school, university, career) with a pastel background across the weeks they cover. Open via the **Zones** button in the toolbar or the command palette: add a title, start and end dates, and pick a pastel color. When zones overlap, the more recent zone's color is shown; the tooltip lists all overlapping zones. Zones are stored in settings and included in the backup.
 - **📤 Export backup**: builds `Life Calendar/backup.json` in the exact JSON format the Android app's BackupManager imports (`version`, `birthDate`, `lifespanYears`, `entries`, `events`). Import the file into the Android app (Profile → backup) or into another Obsidian vault. Since v1.4.0 zones are exported as an extra `zones` key — the Android app ignores it (`ignoreUnknownKeys`).
 - **📥 Import backup**: restores a backup file into this vault — journal entries and events are merged without duplicates. Since v1.4.0 zones from the backup are imported too (duplicates by title + start + end are skipped). Optionally applies the birth date and lifespan from the file (turned on by default when no birth date is set yet). Use it to move your calendar to a new Obsidian account or restore from an Android export.
+- **📜 Feed**: the whole journal in one list — the **Feed** toolbar button opens a window with all entries grouped by year, month, and day. Text search, date range filter, "only with images" filter, sort toggle (newest first / oldest first), plus editing, deleting, and reordering entries right from the list.
 - **Commands** (Command palette):
   - `My Life Calendar: Open Life Calendar`
   - `My Life Calendar: Add entry to journal`
@@ -80,6 +81,29 @@ Life Zones let you mark periods of life — school, university, work, marriage, 
 ### Where zones are stored
 
 Zones are saved in the plugin settings. When you **📤 export** a backup, zones are written to `backup.json` under the `zones` key (color as ARGB, like events). **📥 Import** restores them too — zones that already exist (same name + start + end) are skipped. The Android app ignores the `zones` key, so the file stays compatible.
+
+## 📜 Entry Feed
+
+The Feed is a single chronological list of all journal entries from `Life Calendar/Journal/`. It's handy for browsing the whole history at once, finding an entry by text or images, and editing it without opening files manually.
+
+### How to open
+
+1. Open the **Life Calendar** view.
+2. Click the **📜 Feed** button in the toolbar.
+
+### What it can do
+
+- **Grouping**: entries are grouped by year → month → day; each day header shows the date and weekday.
+- **Text search**: the search field filters entries by content (wiki links and image captions are included).
+- **Date range filter**: the **From** / **To** fields limit the visible range.
+- **Only with images**: a checkbox keeps only entries containing `![[images]]`.
+- **Sorting**: the ⬇/⬆ toggle switches between newest first and oldest first.
+- **Entry actions** (top-right of each card):
+  - **▲ / ▼** — move the entry up/down within the day (reorders blocks in the day file);
+  - **✏️** — edit the date and text (wiki links and images are preserved);
+  - **🗑** — delete the entry (with confirmation).
+
+Entries are rendered as live Markdown: wiki links are clickable and images are visible right in the list.
 
 ## Settings
 
