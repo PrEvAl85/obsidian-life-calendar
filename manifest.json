@@ -1,7 +1,7 @@
 {
   "id": "my-life-calendar",
   "name": "My Life Calendar",
-  "version": "1.4.2",
+  "version": "1.5.0",
   "minAppVersion": "1.13.0",
   "description": "A life-in-weeks grid of heart-shaped cells based on the \"Life in Weeks\" idea by WaitButWhy. Built-in journal, events, and JSON backup (import/export) compatible with the Life Calendar Android app.",
   "author": "PrEvAl85",
