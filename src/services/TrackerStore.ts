@@ -1,5 +1,5 @@
 import { App, TFile, TFolder, Notice } from "obsidian";
-import { TrackerType, TrackerEntry, LIFESPAN_MIN, LIFESPAN_MAX } from "../types";
+import { TrackerType, TrackerEntry } from "../types";
 
 const TRACKERS_FOLDER = "Life Calendar/Trackers";
 
@@ -10,29 +10,25 @@ export class TrackerStore {
     this.app = app;
   }
 
-  private getTrackersDir(): TFile | null {
+  private getTrackersDir(): TFolder | null {
     const dir = this.app.vault.getAbstractFileByPath(TRACKERS_FOLDER);
-    if (!dir || !(dir as TFile | TFolder).path) return null;
-    const tfile = dir as TFile | null;
-    if (!tfile || !("children" in tfile)) return null;
-    return tfile;
+    return dir instanceof TFolder ? dir : null;
   }
 
-  private async ensureTrackersFolder(): Promise<TFile> {
-    const dir = this.app.vault.getAbstractFileByPath(TRACKERS_FOLDER);
-    if (!dir) {
+  private async ensureTrackersFolder(): Promise<TFolder> {
+    let dir = this.app.vault.getAbstractFileByPath(TRACKERS_FOLDER);
+    if (!(dir instanceof TFolder)) {
       try {
         await this.app.vault.createFolder(TRACKERS_FOLDER);
       } catch {
         // папка уже создана
       }
+      dir = this.app.vault.getAbstractFileByPath(TRACKERS_FOLDER);
     }
-    const tfile = dir as TFile | null;
-    if (!tfile) {
-      await this.app.vault.createFolder(TRACKERS_FOLDER);
-      return (this.app.vault.getAbstractFileByPath(TRACKERS_FOLDER) as TFile);
+    if (!(dir instanceof TFolder)) {
+      throw new Error("Life Calendar: папка трекеров не найдена");
     }
-    return tfile;
+    return dir;
   }
 
   private async getFileForType(type: TrackerType): Promise<TFile> {
@@ -42,15 +38,20 @@ export class TrackerStore {
       exercises: "exercises.json",
       tasks: "tasks.json",
     };
-    const file = this.app.vault.getAbstractFileByPath(`${folder.path}/${extMap[type]}`);
-    if (!file) {
+    const path = `${folder.path}/${extMap[type]}`;
+    let file = this.app.vault.getAbstractFileByPath(path);
+    if (!(file instanceof TFile)) {
       try {
-        await this.app.vault.create(`${folder.path}/${extMap[type]}`, JSON.stringify({ version: 1, entries: [] }) + "\n");
+        await this.app.vault.create(path, JSON.stringify({ version: 1, entries: [] }) + "\n");
       } catch {
         // игнорируем ошибки создания
       }
+      file = this.app.vault.getAbstractFileByPath(path);
     }
-    return this.app.vault.getAbstractFileByPath(`${folder.path}/${extMap[type]}`) as TFile;
+    if (!(file instanceof TFile)) {
+      throw new Error(`Life Calendar: файл трекера ${type} не найден`);
+    }
+    return file;
   }
 
   async loadEntries(type: TrackerType): Promise<TrackerEntry[]> {

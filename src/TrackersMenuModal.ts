@@ -21,7 +21,7 @@ export class TrackersMenuModal extends Modal {
 
     for (const [type, name] of items) {
       const item = list.createDiv({ cls: "lc-tracker-type-item" });
-      item.createEl("span", { text: name });
+      item.createSpan({ text: name });
       item.addEventListener("click", () => {
         if (type === "books") {
           this.plugin.openBookTracker();

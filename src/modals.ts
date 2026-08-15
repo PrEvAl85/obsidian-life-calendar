@@ -49,8 +49,8 @@ class WikiLinkSuggest {
     this.app = app;
     this.textarea = textarea;
     this.container = container;
-    this.scrollHandler = this.positionSuggest.bind(this) as (e: Event) => void;
-    this.resizeHandler = this.positionSuggest.bind(this) as (e: UIEvent) => void;
+    this.scrollHandler = () => this.positionSuggest();
+    this.resizeHandler = () => this.positionSuggest();
     this.bindEvents();
   }
 
@@ -261,8 +261,8 @@ export class ImageSelectModal extends Modal {
   }
 
   private renderVaultTab(container: HTMLElement): void {
-    const onSelect = this.onSelect.bind(this) as (embedSyntax: string) => void;
-    const closeModal = this.close.bind(this) as () => void;
+    const onSelect = (embedSyntax: string) => this.onSelect(embedSyntax);
+    const closeModal = () => this.close();
     new (class extends FuzzySuggestModal<TFile> {
       constructor(app: App) { super(app); }
       getItems(): TFile[] {
@@ -1690,23 +1690,17 @@ export class AddBookRecordModal extends Modal {
       attr: { placeholder: t("selectBookOrType"), list: "book-options" },
     });
     bookInput.value = entry?.name || this.prefill?.name || "";
-    const datalist = document.createElement("datalist");
-    datalist.id = "book-options";
+    const datalist = bookWrap.createEl("datalist", { attr: { id: "book-options" } });
     const bookNames = new Set<string>();
     for (const book of books) {
       bookNames.add(book.name.toLowerCase());
-      const opt = document.createElement("option");
-      opt.value = book.name;
-      datalist.appendChild(opt);
+      datalist.createEl("option", { value: book.name });
     }
     for (const jb of journalBooks) {
       if (bookNames.has(jb.name.toLowerCase())) continue;
       bookNames.add(jb.name.toLowerCase());
-      const opt = document.createElement("option");
-      opt.value = jb.name;
-      datalist.appendChild(opt);
+      datalist.createEl("option", { value: jb.name });
     }
-    bookWrap.appendChild(datalist);
 
     const authorWrap = contentEl.createDiv({ cls: "lc-modal-field" });
     authorWrap.createEl("label", { text: t("author") });
@@ -1758,11 +1752,9 @@ export class AddBookRecordModal extends Modal {
     dateEndInput.value = entry?.dateFinished || "";
 
     // When the book name matches an already-known book, lock metadata fields
-    let locked = false;
     const applyLock = () => {
       // For the book's start record, allow editing all book data
       if (this.options?.isBookStart) {
-        locked = false;
         authorInput.disabled = false;
         typeSelect.disabled = false;
         dateStartInput.disabled = false;
@@ -1771,7 +1763,6 @@ export class AddBookRecordModal extends Modal {
       const name = bookInput.value.trim().toLowerCase();
       const known = knownBooks.get(name);
       if (known) {
-        locked = true;
         if (!entry) {
           authorInput.value = known.author || "";
           typeSelect.value = known.bookType || "electronic";
@@ -1782,7 +1773,6 @@ export class AddBookRecordModal extends Modal {
         typeSelect.disabled = true;
         dateStartInput.disabled = true;
       } else {
-        locked = false;
         if (!entry) {
           authorInput.disabled = false;
           typeSelect.disabled = false;

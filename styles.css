@@ -459,7 +459,7 @@
 }
 .lc-week-item-rendered img {
   max-width: 100%;
-  max-height: 150px;
+  max-height: 80px;
   height: auto;
   display: block;
   border-radius: 4px;
@@ -467,7 +467,6 @@
 .lc-week-item-rendered a.internal-link {
   color: var(--text-accent);
   text-decoration: underline;
-  text-decoration-style: dotted;
 }
 .lc-week-item-rendered p {
   margin: 0 0 0.5em;
@@ -498,38 +497,6 @@
   border-radius: 4px;
   border: 1px solid var(--background-modifier-border);
   object-fit: cover;
-}
-
-/* Отрендеренный контент записи в окне недели */
-.lc-week-item-rendered {
-  max-height: 200px;
-  overflow: auto;
-  font-size: 13px;
-  line-height: 1.5;
-  margin-top: 4px;
-}
-.lc-week-item-rendered img {
-  max-width: 100%;
-  max-height: 80px;
-  height: auto;
-  display: block;
-  border-radius: 4px;
-}
-.lc-week-item-rendered a.internal-link {
-  color: var(--text-accent);
-  text-decoration: underline;
-  text-decoration-style: dotted;
-}
-.lc-week-item-rendered p {
-  margin: 0 0 0.5em;
-}
-.lc-week-item-rendered p:last-child {
-  margin-bottom: 0;
-}
-.lc-week-item-rendered ul,
-.lc-week-item-rendered ol {
-  margin: 0.5em 0;
-  padding-left: 1.5em;
 }
 
 /* Кастомный suggest для [[ и ![[ */

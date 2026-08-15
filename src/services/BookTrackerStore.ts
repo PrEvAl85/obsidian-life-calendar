@@ -1,4 +1,4 @@
-import { App, TFile } from "obsidian";
+﻿import { App, TFile } from "obsidian";
 import {
   BookDefinition,
   BookEntry,
@@ -9,8 +9,6 @@ import {
   BookTrackerSettings,
   HEATMAP_COLORS,
 } from "../types";
-
-const BOOK_LINE_REGEX = /^(.*?):\s+([\d.,]+)\s*(\S+)?\s*(тр\.?\s*рейтинг[:\s]*(\d+)|rating[:\s]*(\d+))?\s*(\S+)?$/gim;
 
 export class BookTrackerStore {
   private app: App;
@@ -573,7 +571,7 @@ export class BookTrackerStore {
       if (newContent !== content && newContent.trim()) {
         await this.app.vault.modify(file, newContent);
       } else if (newContent.trim() === '') {
-        await this.app.vault.delete(file);
+        await this.app.fileManager.trashFile(file);
       }
     }
 
@@ -593,7 +591,7 @@ export class BookTrackerStore {
       const newContent = this.removeBookLine(content, entry.name);
       if (newContent !== content) {
         if (newContent.trim() === '') {
-          await this.app.vault.delete(file);
+          await this.app.fileManager.trashFile(file);
         } else {
           await this.app.vault.modify(file, newContent);
         }
@@ -612,7 +610,7 @@ export class BookTrackerStore {
         const newContent = this.removeBookLine(content, entry.name);
         if (newContent !== content) {
           if (newContent.trim() === '') {
-            await this.app.vault.delete(finishedFile);
+            await this.app.fileManager.trashFile(finishedFile);
           } else {
             await this.app.vault.modify(finishedFile, newContent);
           }
@@ -629,7 +627,6 @@ export class BookTrackerStore {
    * definition if the book exists there. Used when editing a book's start record.
    */
   async updateBookAcrossJournal(oldName: string, updated: BookEntry): Promise<void> {
-    const folder = this.settings.dailyNotesFolder || "Life Calendar/Journal";
     const files = this.findDailyNotesFiles();
 
     for (const file of files) {
@@ -639,7 +636,7 @@ export class BookTrackerStore {
       const newContent = this.rewriteBookLines(content, date, oldName, updated);
       if (newContent !== content) {
         if (newContent.trim() === '') {
-          await this.app.vault.delete(file);
+          await this.app.fileManager.trashFile(file);
         } else {
           await this.app.vault.modify(file, newContent);
         }
@@ -693,7 +690,6 @@ export class BookTrackerStore {
    * definition from settings if it exists.
    */
   async deleteBookCompletely(bookName: string): Promise<void> {
-    const folder = this.settings.dailyNotesFolder || "Life Calendar/Journal";
     const files = this.findDailyNotesFiles();
 
     for (const file of files) {
@@ -701,7 +697,7 @@ export class BookTrackerStore {
       const newContent = this.removeBookLine(content, bookName);
       if (newContent !== content) {
         if (newContent.trim() === '') {
-          await this.app.vault.delete(file);
+          await this.app.fileManager.trashFile(file);
         } else {
           await this.app.vault.modify(file, newContent);
         }

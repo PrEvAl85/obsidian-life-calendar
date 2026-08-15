@@ -2,9 +2,8 @@ import { ItemView, WorkspaceLeaf, TFile, Notice, DropdownComponent } from "obsid
 import LifeCalendarPlugin from "./main";
 import {
   HEART_COLORS, RING_COLORS, JournalEntry, LifeEvent, LifeZone, WeekStyle,
-  ExerciseDefinition, ExerciseEntry, ExerciseStats, MonthlyExerciseStats, WeeklyExerciseStats,
-  BookDefinition, BookEntry, BookStats, MonthlyBookStats, WeeklyBookStats, BookType,
-  EXERCISE_UNIT_LABELS, HEATMAP_COLORS
+  ExerciseEntry, BookEntry, BookType,
+  EXERCISE_UNIT_LABELS
 } from "./types";
 import { keyToDmy, dmyToKey, weekdayName, weekKeyOf } from "./util";
 import { addDays, addYears, diffDays, diffYears, formatKey, isValidKey, mondayKeyOf, monthDayOf, todayKey, yearOf } from "./date";
@@ -172,7 +171,7 @@ export class LifeCalendarView extends ItemView {
     const impBtn = tool.createEl("button", { cls: "add-btn", text: t("importBtn") });
     impBtn.type = "button";
     
-    const trackerDropdownWrap = tool.createEl("div", { cls: "lc-tracker-dropdown-wrap" });
+    const trackerDropdownWrap = tool.createDiv({ cls: "lc-tracker-dropdown-wrap" });
     const trackerSelect = new DropdownComponent(trackerDropdownWrap);
     trackerSelect.addOption("", t("exerciseTrackerTab"));
     trackerSelect.addOption("books", t("books"));
@@ -663,7 +662,7 @@ this.plugin.settings.journalFolder,
       void this.render();
     });
 
-    tool.createEl("span", { cls: "tracker-title", text: t("exerciseTrackerTab") });
+    tool.createSpan({ cls: "tracker-title", text: t("exerciseTrackerTab") });
 
     const addBtn = tool.createEl("button", { cls: "add-btn", text: t("exerciseAddRecord") });
     addBtn.type = "button";
@@ -675,9 +674,9 @@ this.plugin.settings.journalFolder,
       }).open();
     });
 
-    tool.createEl("span", { cls: "tracker-toolbar-spacer" });
+    tool.createSpan({ cls: "tracker-toolbar-spacer" });
 
-    tool.createEl("span", { cls: "tracker-year-label", text: t("exerciseHeatmapYear") + " " });
+    tool.createSpan({ cls: "tracker-year-label", text: t("exerciseHeatmapYear") + " " });
     const yearSel = tool.createEl("select", { cls: "tracker-year-select" });
     for (let y = this.trackerYear - 3; y <= this.trackerYear + 3; y++) {
       const opt = yearSel.createEl("option", { text: String(y) });
@@ -736,7 +735,7 @@ this.plugin.settings.journalFolder,
       void this.render();
     });
 
-    tool.createEl("span", { cls: "tracker-title", text: t("bookTrackerTab") });
+    tool.createSpan({ cls: "tracker-title", text: t("bookTrackerTab") });
 
     const addBtn = tool.createEl("button", { cls: "add-btn", text: t("addBookRecord") });
     addBtn.type = "button";
@@ -775,9 +774,9 @@ this.plugin.settings.journalFolder,
       })();
     });
 
-    tool.createEl("span", { cls: "tracker-toolbar-spacer" });
+    tool.createSpan({ cls: "tracker-toolbar-spacer" });
 
-    tool.createEl("span", { cls: "tracker-year-label", text: t("exerciseHeatmapYear") + " " });
+    tool.createSpan({ cls: "tracker-year-label", text: t("exerciseHeatmapYear") + " " });
     const yearSel = tool.createEl("select", { cls: "tracker-year-select" });
     for (let y = this.trackerYear - 3; y <= this.trackerYear + 3; y++) {
       const opt = yearSel.createEl("option", { text: String(y) });
@@ -858,11 +857,11 @@ this.plugin.settings.journalFolder,
     const sorted = [...readMap.values()].sort((a, b) => a.date.localeCompare(b.date));
     for (const e of sorted) {
       const item = list.createDiv({ cls: "tracker-read-book-item" });
-      item.createEl("span", { cls: "tracker-read-book-name", text: e.name });
-      if (e.author) item.createEl("span", { cls: "tracker-read-book-author", text: e.author });
-      item.createEl("span", { cls: "tracker-read-book-date", text: keyToDmy(e.date) });
+      item.createSpan({ cls: "tracker-read-book-name", text: e.name });
+      if (e.author) item.createSpan({ cls: "tracker-read-book-author", text: e.author });
+      item.createSpan({ cls: "tracker-read-book-date", text: keyToDmy(e.date) });
       if (e.value && e.value > 0) {
-        item.createEl("span", { cls: "tracker-read-book-value", text: `${e.value} стр.` });
+        item.createSpan({ cls: "tracker-read-book-value", text: `${e.value} стр.` });
       }
     }
   }
@@ -994,7 +993,7 @@ this.plugin.settings.journalFolder,
           if (e.rating) text += ` ★${e.rating}`;
         }
         const item = list.createDiv({ cls: "tracker-day-item" });
-        item.createEl("span", { text });
+        item.createSpan({ text });
         const editBtn = item.createEl("button", { cls: "tracker-day-edit", text: "✏️" });
         editBtn.type = "button";
         editBtn.title = "Редактировать";
@@ -1030,7 +1029,7 @@ this.plugin.settings.journalFolder,
       for (const e of filtered) {
         const unit = e.unit === "custom" ? (e.customUnit || t("custom")) : EXERCISE_UNIT_LABELS[e.unit] || e.unit;
         const item = list.createDiv({ cls: "tracker-day-item" });
-        item.createEl("span", { text: `${e.name}: ${e.value} ${unit}` });
+        item.createSpan({ text: `${e.name}: ${e.value} ${unit}` });
         const delBtn = item.createEl("button", { cls: "tracker-day-del", text: "🗑" });
         delBtn.type = "button";
         delBtn.title = "Удалить";

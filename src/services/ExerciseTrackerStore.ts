@@ -1,11 +1,10 @@
-import { App, TFile } from "obsidian";
+﻿import { App, TFile } from "obsidian";
 import {
   ExerciseDefinition,
   ExerciseEntry,
   ExerciseStats,
   MonthlyExerciseStats,
   WeeklyExerciseStats,
-  DEFAULT_EXERCISE_DEFINITIONS,
   HEATMAP_COLORS,
   ExerciseTrackerSettings,
 } from "../types";
@@ -420,7 +419,7 @@ export class ExerciseTrackerStore {
       const newContent = this.removeExerciseLine(content, entry.name);
       if (newContent !== content) {
         if (newContent.trim() === '') {
-          await this.app.vault.delete(file);
+          await this.app.fileManager.trashFile(file);
         } else {
           await this.app.vault.modify(file, newContent);
         }
