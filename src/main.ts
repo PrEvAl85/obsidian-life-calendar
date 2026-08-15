@@ -1,34 +1,41 @@
 import { getLanguage, Notice, Plugin } from "obsidian";
 import { DEFAULT_SETTINGS, LifeCalendarSettings } from "./types";
 import { JournalStore } from "./journal";
-import { WeekStore } from "./weekly";
 import { EventsStore } from "./events";
 import { ExportManager } from "./export";
 import { ImportManager, ImportResult } from "./import";
 import { BirthDateModal, setupStructure } from "./onboarding";
 import { LifeCalendarSettingTab } from "./settings";
 import { LifeCalendarView, VIEW_TYPE_LIFE_CALENDAR } from "./view";
-import { AddEntryModal, EventsModal, ImportModal, ZonesModal } from "./modals";
+import { AddEntryModal, EventsModal, ImportModal, ZonesModal, AddExerciseRecordModal, AddBookRecordModal } from "./modals";
 import { resolveLanguage, setLanguage, t } from "./i18n";
 import { todayKey } from "./date";
+import { TrackersMenuModal } from "./TrackersMenuModal";
+import { TrackerStore } from "./services/TrackerStore";
+import { ExerciseTrackerStore } from "./services/ExerciseTrackerStore";
+import { BookTrackerStore } from "./services/BookTrackerStore";
 
 export default class LifeCalendarPlugin extends Plugin {
   settings: LifeCalendarSettings = { ...DEFAULT_SETTINGS };
   journal!: JournalStore;
-  week!: WeekStore;
   events!: EventsStore;
   export!: ExportManager;
   import!: ImportManager;
+  trackerStore!: TrackerStore;
+  exerciseTrackerStore!: ExerciseTrackerStore;
+  bookTrackerStore!: BookTrackerStore;
 
   async onload(): Promise<void> {
     await this.loadSettings();
     setLanguage(resolveLanguage(this.settings.language, getLanguage));
 
     this.journal = new JournalStore(this.app, () => this.settings);
-    this.week = new WeekStore(this.app, () => this.settings);
     this.events = new EventsStore(this.app, () => this.settings);
     this.export = new ExportManager(this.app, () => this.settings);
     this.import = new ImportManager(this.app, () => this.settings, () => this.saveSettings(), this.journal, this.events);
+    this.trackerStore = new TrackerStore(this.app);
+    this.exerciseTrackerStore = new ExerciseTrackerStore(this.app, () => this.settings.exerciseTracker);
+    this.bookTrackerStore = new BookTrackerStore(this.app, () => this.settings.bookTracker);
 
     // Структура папок/файлов — идемпотентно при каждой загрузке (даже если папки удалили)
     void setupStructure(this.app, this.settings);
@@ -96,6 +103,11 @@ export default class LifeCalendarPlugin extends Plugin {
         ).open();
       },
     });
+    this.addCommand({
+      id: "open-trackers-menu",
+      name: t("exerciseTrackerTab"),
+      callback: () => this.openTrackersMenu(),
+    });
 
     this.addSettingTab(new LifeCalendarSettingTab(this.app, this));
 
@@ -128,6 +140,8 @@ export default class LifeCalendarPlugin extends Plugin {
 
   async saveSettings(): Promise<void> {
     await this.saveData(this.settings);
+    void this.exerciseTrackerStore.onSettingsChange(this.settings.exerciseTracker);
+    void this.bookTrackerStore.onSettingsChange(this.settings.bookTracker);
   }
 
   async openLifeCalendar(): Promise<void> {
@@ -185,5 +199,56 @@ export default class LifeCalendarPlugin extends Plugin {
     const result = await this.import.importBackup(data, applyMeta);
     this.refreshViews();
     return result;
+  }
+
+  openTrackersMenu(): void {
+    new TrackersMenuModal(this.app, this).open();
+  }
+
+  openBookTracker(): void {
+    const leaves = this.app.workspace.getLeavesOfType(VIEW_TYPE_LIFE_CALENDAR);
+    const leaf = leaves.length ? leaves[0] : this.app.workspace.getLeaf(true);
+    void leaf.setViewState({ type: VIEW_TYPE_LIFE_CALENDAR, active: true }, { bypassVisibility: true });
+    const view = leaf.view as LifeCalendarView;
+    view.openTrackerType("books");
+  }
+
+  openExerciseTracker(): void {
+    const leaves = this.app.workspace.getLeavesOfType(VIEW_TYPE_LIFE_CALENDAR);
+    const leaf = leaves.length ? leaves[0] : this.app.workspace.getLeaf(true);
+    void leaf.setViewState({ type: VIEW_TYPE_LIFE_CALENDAR, active: true }, { bypassVisibility: true });
+    const view = leaf.view as LifeCalendarView;
+    view.openTrackerType("exercises");
+  }
+
+  openTrackerModal(type: "books" | "exercises" | "tasks"): void {
+    switch (type) {
+      case "books":
+        new AddBookRecordModal(this.app, {
+          bookTrackerStore: this.bookTrackerStore
+        }, async (entry) => {
+          await this.bookTrackerStore.saveEntryToDailyNote(entry);
+          new Notice(t("bookAdded"));
+          this.refreshViews();
+        }).open();
+        break;
+      case "exercises":
+        new AddExerciseRecordModal(this.app, this.exerciseTrackerStore, async (entry) => {
+          await this.exerciseTrackerStore.saveEntryToDailyNote(entry);
+          new Notice(t("exerciseRecordAdded"));
+        }).open();
+        break;
+      case "tasks":
+        new AddEntryModal(this.app, todayKey(), async (date, text) => {
+          try {
+            const path = await this.journal.addEntry(date, text);
+            new Notice(t("entryAdded", { path }));
+          } catch (err: unknown) {
+            console.error("Life Calendar: add entry", err);
+            new Notice(t("genericError", { error: err instanceof Error ? err.message : String(err) }));
+          }
+        }, this.settings.journalFolder).open();
+        break;
+    }
   }
 }

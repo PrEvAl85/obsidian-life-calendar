@@ -4,6 +4,15 @@ node_modules/
 # Build output
 main.js
 *.map
+dist/
+
+# Local debug/build logs
+*.txt
+
+# Local memory/docs (не в публичный репозиторий)
+LOG.md
+MEMORIES.md
+WIKI.md
 
 # Release archives
 *.zip

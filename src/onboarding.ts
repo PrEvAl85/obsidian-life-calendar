@@ -1,13 +1,14 @@
 import { App, Modal, Notice, Setting, TFile } from "obsidian";
 import { LifeCalendarSettings } from "./types";
 import { t } from "./i18n";
+import { TrackerStore } from "./services/TrackerStore";
 
 /**
  * Создание структуры плагина при первом включении:
- * папки Journal/ и Weekly/, файл событий.
+ * папка Journal/, файл событий, папка Trackers.
  */
 export async function setupStructure(app: App, settings: LifeCalendarSettings): Promise<void> {
-  for (const dir of [settings.journalFolder, settings.weeklyFolder]) {
+  for (const dir of [settings.journalFolder]) {
     if (!dir) continue;
     const folder = app.vault.getAbstractFileByPath(dir);
     if (!folder) {
@@ -32,6 +33,21 @@ export async function setupStructure(app: App, settings: LifeCalendarSettings): 
       await app.vault.create(settings.eventsFile, "---\nevents:\n---\n\n");
     } catch {
       // файл создался параллельно
+    }
+  }
+  // Создаем папку трекеров (если её нет)
+  const trackersDir = app.vault.getAbstractFileByPath("Life Calendar/Trackers");
+  if (!trackersDir) {
+    try {
+      await app.vault.createFolder("Life Calendar/Trackers");
+      // Создаем пустые файлы для каждого типа трекеров
+      const trackerStore = new TrackerStore(app);
+      // Инициализируем файлы
+      await trackerStore.saveEntries("books", []);
+      await trackerStore.saveEntries("exercises", []);
+      await trackerStore.saveEntries("tasks", []);
+    } catch {
+      // папка уже создана параллельно
     }
   }
 }

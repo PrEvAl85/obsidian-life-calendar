@@ -24,7 +24,6 @@ A life-in-weeks view for Obsidian: your whole life as a grid of heart-shaped cel
 When you enable the plugin for the first time, it asks for your **date of birth** (required — the grid starts from it). After saving, the plugin creates its own folders so they never conflict with your other notes:
 
 - `Life Calendar/Journal/` — daily journal entries, one file per day (`DD.MM.YYYY.md`);
-- `Life Calendar/Weekly/` — weekly aggregator notes (built when you click a week);
 - `Life Calendar/Events.md` — events in YAML-frontmatter (`date`, `color`, `title`);
 - `Life Calendar/backup.json` — JSON backup file (import/export).
 
@@ -35,13 +34,14 @@ All paths are configurable in the plugin settings.
 - **Life grid**: hearts for every week from your birth date for the whole lifespan (default 100 years, configurable 50–120).
 - **Legend**: birth date, today, age (years + weeks), number of weeks with entries.
 - **Tooltips**: hover a heart to see the week's entries. For weeks with entries an interactive tooltip appears with a color palette (8 colors) and ring palette (8 ring colors) — click a swatch to recolor the heart, click again (or the ✕ button) to reset. Settings persist and apply on the fly.
-- **Click a week**: opens (or creates) the weekly aggregator note built from that week's journal files. Manual sections you added are preserved when the note is rebuilt.
+- **Click a week**: opens the week window with that week's journal entries and events. Each entry has **📄 Open note** to open the day's file.
 - **➕ Add journal entry**: date + text → appends to the day's file in `Life Calendar/Journal/`.
 - **Events**: add / edit / delete (date, title, color) via the Events window or the command palette. Events show as colored hearts on the grid.
 - **🎨 Life zones**: mark periods of life (e.g. school, university, career) with a pastel background across the weeks they cover. Open via the **Zones** button in the toolbar or the command palette: add a title, start and end dates, and pick a pastel color. When zones overlap, the more recent zone's color is shown; the tooltip lists all overlapping zones. Zones are stored in settings and included in the backup.
 - **📤 Export backup**: builds `Life Calendar/backup.json` in the exact JSON format the Android app's BackupManager imports (`version`, `birthDate`, `lifespanYears`, `entries`, `events`). Import the file into the Android app (Profile → backup) or into another Obsidian vault. Since v1.4.0 zones are exported as an extra `zones` key — the Android app ignores it (`ignoreUnknownKeys`).
 - **📥 Import backup**: restores a backup file into this vault — journal entries and events are merged without duplicates. Since v1.4.0 zones from the backup are imported too (duplicates by title + start + end are skipped). Optionally applies the birth date and lifespan from the file (turned on by default when no birth date is set yet). Use it to move your calendar to a new Obsidian account or restore from an Android export.
-- **📜 Feed**: the whole journal in one list — the **Feed** toolbar button opens a window with all entries grouped by year, month, and day. Text search, date range filter, "only with images" filter, sort toggle (newest first / oldest first), plus editing, deleting, and reordering entries right from the list.
+- **📜 Feed**: the whole journal in one list — the **Feed** toolbar button opens a window with all entries grouped by year, month, and day. Text search, date range filter, "only with images" filter, sort toggle (newest first / oldest first), plus opening the day's note (**📄**), editing, deleting, and reordering entries right from the list.
+- **📊 Trackers**: an exercise tracker tab right inside the Life Calendar view — the **📊 Trackers** toolbar button. Month-based heatmap (12 blocks × 7 weekdays), stat cards (total, active days, best streak, best day), month and week summary tables, and day details on click. Data is read from daily notes `daily/DD.MM.YYYY.md` in the format `Exercise: number unit` (e.g. `Push-ups: 25`, `Run: 5 km`). Records are added with the **➕ Add Record** button and saved into the day file.
 - **Commands** (Command palette):
   - `My Life Calendar: Open Life Calendar`
   - `My Life Calendar: Add entry to journal`
@@ -99,19 +99,58 @@ The Feed is a single chronological list of all journal entries from `Life Calend
 - **Only with images**: a checkbox keeps only entries containing `![[images]]`.
 - **Sorting**: the ⬇/⬆ toggle switches between newest first and oldest first.
 - **Entry actions** (top-right of each card):
+  - **📄** — open the day's note (the `DD.MM.YYYY.md` file);
   - **▲ / ▼** — move the entry up/down within the day (reorders blocks in the day file);
   - **✏️** — edit the date and text (wiki links and images are preserved);
   - **🗑** — delete the entry (with confirmation).
 
 Entries are rendered as live Markdown: wiki links are clickable and images are visible right in the list.
 
+## 📊 Exercise Tracker
+
+The exercise tracker tab is built right into the **Life Calendar** view — no extra plugins (Dataview, etc.) needed.
+
+### How to open
+
+1. Open the **Life Calendar** view.
+2. Click the **📊 Trackers** button in the toolbar.
+3. The **← Back** button returns to the life grid.
+
+### Where the data lives
+
+Records are read from daily notes (default folder `daily/`, files `DD.MM.YYYY.md`). Line format: `Exercise: number unit`, for example:
+
+```
+Push-ups: 25
+Run: 5 km
+Plank: 2 min
+```
+
+Recognized units: reps, minutes (min), kilograms (kg), kilometers (km), custom.
+
+### What it can do
+
+- **Heatmap**: 12 month blocks, 7 weekdays each; color intensity — 5 levels based on the day's total. Today is outlined. Click a day to see its records below; the ✕ button closes the details.
+- **Stats**: total, active days, best streak (consecutive days), best day.
+- **Exercise filter**: a dropdown with "All" plus each exercise.
+- **Year**: year switcher (◀ ▶).
+- **Tables**: monthly and weekly summaries (days and total value).
+- **➕ Add Record**: pick an exercise (or type a custom name), value, unit, date — the record is saved into the day file (an existing line for the same exercise is updated).
+
+### Settings
+
+In the plugin **Settings**, the **Tracker Settings** section:
+- **Daily Notes Folder** — where `DD.MM.YYYY.md` files are located;
+- **Exercises list** — add (name + default unit), delete, drag-to-reorder.
+
 ## Settings
 
 - Birth date
 - Lifespan (50–120 years)
 - Language: auto (Obsidian language) / Russian / English
-- Journal folder, weekly folder, events file, export file paths
+- Journal folder, events file, export file paths
 - Life zones (add / edit / delete via the Zones window)
+- Tracker settings: daily notes folder, exercises list
 - Reset heart colors/rings
 
 ## Development

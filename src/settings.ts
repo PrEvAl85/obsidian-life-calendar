@@ -18,7 +18,7 @@ const CRYPTO_ADDRESSES: { key: keyof Dict; address: string }[] = [
   { key: "cryptoTON", address: "UQCzoPJlYLHSoFGmRyh_-_ox1nOMCzx3LwG79xPR5pbjs3Aq" },
 ];
 
-const PATH_KEYS = ["journalFolder", "weeklyFolder", "eventsFile", "exportFile"];
+const PATH_KEYS = ["journalFolder", "eventsFile", "exportFile", "bookTrackerFolder"];
 
 export class LifeCalendarSettingTab extends PluginSettingTab {
   constructor(
@@ -72,11 +72,6 @@ export class LifeCalendarSettingTab extends PluginSettingTab {
         name: t("settingsJournalFolder"),
         desc: t("settingsJournalFolderDesc"),
         control: { type: "text", key: "journalFolder", placeholder: "Life Calendar/Journal" },
-      },
-      {
-        name: t("settingsWeeklyFolder"),
-        desc: t("settingsWeeklyFolderDesc"),
-        control: { type: "text", key: "weeklyFolder", placeholder: "Life Calendar/Weekly" },
       },
       {
         name: t("settingsEventsFile"),

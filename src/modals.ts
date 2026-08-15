@@ -1,9 +1,15 @@
 import { App, Modal, Notice, TFile, FuzzySuggestModal, MarkdownRenderer, Component } from "obsidian";
 import { addDays, formatKey, todayKey } from "./date";
-import { HEART_COLORS, JournalEntry, LifeEvent, LifeZone, ZONE_COLORS } from "./types";
+import {
+  HEART_COLORS, JournalEntry, LifeEvent, LifeZone, ZONE_COLORS,
+  BookDefinition, BookEntry, BookType, BOOK_TYPE_OPTIONS
+} from "./types";
 import { keyToDmy, weekdayName } from "./util";
 import { t, monthNameGen } from "./i18n";
 import { ImportResult, InvalidBackupError } from "./import";
+import { AddExerciseRecordModal } from "./AddExerciseRecordModal";
+
+export { AddExerciseRecordModal };
 
 /** Извлекает имена файлов из синтаксиса ![[filename]] в тексте. */
 function extractImageRefs(text: string): string[] {
@@ -832,8 +838,7 @@ export interface WeekHandlers {
   addEvent: (ev: LifeEvent) => Promise<void>;
   updateEvent: (old: LifeEvent, next: LifeEvent) => Promise<void>;
   deleteEvent: (ev: LifeEvent) => Promise<void>;
-  openDayNotes: (paths: string[]) => Promise<void>;
-  openWeekNote: (entries: JournalEntry[]) => Promise<void>;
+  openDayNote: (path: string) => Promise<void>;
 }
 
 /** Окно недели: записи дневника и события недели, добавляемые/редактируемые независимо. */
@@ -943,6 +948,13 @@ export class WeekModal extends Modal {
           await this.reload();
         })();
       });
+      const openBtn = btns.createEl("button", { cls: "lc-week-btn", text: "📄" });
+      openBtn.title = t("openDayNote");
+      openBtn.addEventListener("click", () => {
+        void (async () => {
+          await this.handlers.openDayNote(e.path);
+        })();
+      });
       // Рендерим текст через MarkdownRenderer для поддержки [[wiki-links]] и ![[images]]
       const rendered = item.createDiv({ cls: "lc-week-item-rendered" });
       const renderComponent = new Component();
@@ -999,27 +1011,7 @@ export class WeekModal extends Modal {
     }
     if (!this.events.length) sList.createDiv({ cls: "lc-week-empty", text: t("noEventsWeek") });
 
-    const row = contentEl.createDiv({ cls: "lc-modal-row lc-modal-row-between" });
-    const left = row.createDiv({ cls: "lc-modal-row-left" });
-    const dayBtn = left.createEl("button", { cls: "lc-modal-cancel", text: t("openDayNotes") });
-    dayBtn.type = "button";
-    dayBtn.addEventListener("click", () => {
-      void (async () => {
-        const paths = [...new Set(this.entries.map((e) => e.path))];
-        if (!paths.length) {
-          new Notice(t("weekNoEntries"));
-          return;
-        }
-        await this.handlers.openDayNotes(paths);
-      })();
-    });
-    const weekBtn = left.createEl("button", { cls: "lc-modal-cancel", text: t("openWeekNote") });
-    weekBtn.type = "button";
-    weekBtn.addEventListener("click", () => {
-      void (async () => {
-        await this.handlers.openWeekNote(this.entries);
-      })();
-    });
+    const row = contentEl.createDiv({ cls: "lc-modal-row" });
     row.createEl("button", { cls: "lc-modal-cancel", text: t("close") }).addEventListener("click", () => this.close());
   }
 
@@ -1033,6 +1025,7 @@ export interface FeedHandlers {
   updateEntry: (oldDate: string, index: number, newDate: string, text: string) => Promise<void>;
   deleteEntry: (date: string, index: number) => Promise<void>;
   moveEntry: (date: string, index: number, dir: -1 | 1) => Promise<void>;
+  openDayNote: (path: string) => Promise<void>;
 }
 
 /** Модалка «Поток» (Feed): хронологический список всех записей с группировкой, фильтрацией и CRUD. */
@@ -1319,6 +1312,12 @@ export class FeedModal extends Modal {
           await this.refresh();
         })();
       });
+    });
+
+    // Кнопка «Открыть заметку»
+    const openBtn = actions.createEl("button", { cls: "lc-feed-action-btn", text: "📄", attr: { title: t("openDayNote") } });
+    openBtn.addEventListener("click", () => {
+      void this.handlers.openDayNote(entry.path);
     });
 
     // Текст записи (рендерим через MarkdownRenderer для поддержки вики-ссылок и изображений)
@@ -1614,5 +1613,273 @@ export class ImportModal extends Modal {
 
   onClose(): void {
     this.contentEl.empty();
+  }
+}
+
+/** Модалка добавления/редактирования записи о книге. */
+export class AddBookRecordModal extends Modal {
+  private result: BookEntry | null = null;
+  private resolveFn: ((v: BookEntry | null) => void) | null = null;
+  private promise: Promise<BookEntry | null>;
+
+  constructor(
+    app: App,
+    private plugin: {
+      bookTrackerStore: { getBooks: () => BookDefinition[]; getBookById: (id: string) => BookDefinition | undefined; getBookByName: (name: string) => BookDefinition | undefined; getJournalBooks: () => Promise<{ bookId: string; name: string; author?: string; bookType?: BookType; dateStarted?: string }[]> };
+    },
+    private onSave: (entry: BookEntry) => Promise<void>,
+    private existingEntry: BookEntry | null = null,
+    private prefill?: { name?: string; author?: string; bookType?: BookType; dateStarted?: string; bookId?: string },
+    private options?: { isBookStart?: boolean; onDeleteBook?: (bookName: string) => Promise<void> },
+  ) {
+    super(app);
+    this.promise = new Promise((resolve) => {
+      this.resolveFn = resolve;
+    });
+  }
+
+  awaitResult(): Promise<BookEntry | null> {
+    return this.promise;
+  }
+
+  private finish(v: BookEntry | null): void {
+    this.result = v;
+    this.close();
+  }
+
+  async onOpen(): Promise<void> {
+    const { contentEl } = this;
+    contentEl.addClass("lc-modal");
+    const isEdit = !!this.existingEntry;
+    contentEl.createEl("h3", { text: isEdit ? t("editBookRecord") : t("addBookRecord") });
+
+    const books = this.plugin.bookTrackerStore.getBooks();
+    const today = new Date().toISOString().split("T")[0];
+    const entry = this.existingEntry;
+
+    const journalBooks = await this.plugin.bookTrackerStore.getJournalBooks();
+    const knownBooks = new Map<string, { name: string; author?: string; bookType?: BookType; dateStarted?: string }>();
+    for (const book of books) {
+      knownBooks.set(book.name.toLowerCase(), {
+        name: book.name,
+        author: book.author,
+        bookType: book.bookType,
+      });
+    }
+    for (const jb of journalBooks) {
+      const key = jb.name.toLowerCase();
+      const existing = knownBooks.get(key);
+      if (!existing) {
+        knownBooks.set(key, {
+          name: jb.name,
+          author: jb.author,
+          bookType: jb.bookType,
+          dateStarted: jb.dateStarted,
+        });
+      } else {
+        if (!existing.author && jb.author) existing.author = jb.author;
+        if (!existing.bookType && jb.bookType) existing.bookType = jb.bookType;
+        if (!existing.dateStarted && jb.dateStarted) existing.dateStarted = jb.dateStarted;
+      }
+    }
+
+    const bookWrap = contentEl.createDiv({ cls: "lc-modal-field" });
+    bookWrap.createEl("label", { text: t("bookTitle") });
+    const bookInput = bookWrap.createEl("input", {
+      cls: "lc-modal-text",
+      attr: { placeholder: t("selectBookOrType"), list: "book-options" },
+    });
+    bookInput.value = entry?.name || this.prefill?.name || "";
+    const datalist = document.createElement("datalist");
+    datalist.id = "book-options";
+    const bookNames = new Set<string>();
+    for (const book of books) {
+      bookNames.add(book.name.toLowerCase());
+      const opt = document.createElement("option");
+      opt.value = book.name;
+      datalist.appendChild(opt);
+    }
+    for (const jb of journalBooks) {
+      if (bookNames.has(jb.name.toLowerCase())) continue;
+      bookNames.add(jb.name.toLowerCase());
+      const opt = document.createElement("option");
+      opt.value = jb.name;
+      datalist.appendChild(opt);
+    }
+    bookWrap.appendChild(datalist);
+
+    const authorWrap = contentEl.createDiv({ cls: "lc-modal-field" });
+    authorWrap.createEl("label", { text: t("author") });
+    const authorInput = authorWrap.createEl("input", {
+      cls: "lc-modal-text",
+      attr: { placeholder: t("enterAuthor") },
+    });
+    authorInput.value = entry?.author || this.prefill?.author || "";
+
+    const typeWrap = contentEl.createDiv({ cls: "lc-modal-field" });
+    typeWrap.createEl("label", { text: t("bookType") });
+    const typeSelect = typeWrap.createEl("select", { cls: "lc-modal-text" });
+    for (const opt of BOOK_TYPE_OPTIONS) {
+      const option = typeSelect.createEl("option", { text: opt.label });
+      option.value = opt.value;
+    }
+    typeSelect.value = entry?.bookType || this.prefill?.bookType || "electronic";
+
+    const dateStartWrap = contentEl.createDiv({ cls: "lc-modal-field" });
+    dateStartWrap.createEl("label", { text: t("dateStarted") });
+    const dateStartInput = dateStartWrap.createEl("input", { type: "date" });
+    dateStartInput.value = entry?.date || entry?.dateStarted || this.prefill?.dateStarted || today;
+
+    const valueWrap = contentEl.createDiv({ cls: "lc-modal-field" });
+    valueWrap.createEl("label", { text: t("bookPages") });
+    const valueInput = valueWrap.createEl("input", {
+      cls: "lc-modal-text",
+      attr: { placeholder: t("enterBookTitle"), type: "number", step: "1", min: "0" },
+    });
+    valueInput.value = entry?.value?.toString() || "";
+
+    const ratingWrap = contentEl.createDiv({ cls: "lc-modal-field" });
+    ratingWrap.createEl("label", { text: t("rating") });
+    const ratingInput = ratingWrap.createEl("input", {
+      cls: "lc-modal-text",
+      attr: { type: "number", min: "1", max: "5", step: "0.5" },
+    });
+    ratingInput.value = entry?.rating?.toString() || "";
+
+    const dateReadWrap = contentEl.createDiv({ cls: "lc-modal-field" });
+    dateReadWrap.createEl("label", { text: t("dateCurrentRead") });
+    const dateReadInput = dateReadWrap.createEl("input", { type: "date" });
+    dateReadInput.value = today;
+    dateReadWrap.hide();
+
+    const dateEndWrap = contentEl.createDiv({ cls: "lc-modal-field" });
+    dateEndWrap.createEl("label", { text: t("dateFinished") });
+    const dateEndInput = dateEndWrap.createEl("input", { type: "date" });
+    dateEndInput.value = entry?.dateFinished || "";
+
+    // When the book name matches an already-known book, lock metadata fields
+    let locked = false;
+    const applyLock = () => {
+      // For the book's start record, allow editing all book data
+      if (this.options?.isBookStart) {
+        locked = false;
+        authorInput.disabled = false;
+        typeSelect.disabled = false;
+        dateStartInput.disabled = false;
+        return;
+      }
+      const name = bookInput.value.trim().toLowerCase();
+      const known = knownBooks.get(name);
+      if (known) {
+        locked = true;
+        if (!entry) {
+          authorInput.value = known.author || "";
+          typeSelect.value = known.bookType || "electronic";
+          dateStartInput.value = known.dateStarted || today;
+          dateReadWrap.show();
+        }
+        authorInput.disabled = true;
+        typeSelect.disabled = true;
+        dateStartInput.disabled = true;
+      } else {
+        locked = false;
+        if (!entry) {
+          authorInput.disabled = false;
+          typeSelect.disabled = false;
+          dateStartInput.disabled = false;
+          dateReadWrap.hide();
+        }
+      }
+    };
+    bookInput.addEventListener("input", applyLock);
+    bookInput.addEventListener("change", applyLock);
+    applyLock();
+
+    const row = contentEl.createDiv({ cls: "lc-modal-row" });
+
+    if (this.options?.isBookStart) {
+      const deleteBookBtn = row.createEl("button", { cls: "lc-modal-delete", text: t("deleteBook") });
+      deleteBookBtn.type = "button";
+      deleteBookBtn.addEventListener("click", () => {
+        const bookName = bookInput.value.trim() || entry?.name || "";
+        this.confirmDeleteBook(bookName);
+      });
+    }
+
+    const cancelBtn = row.createEl("button", { cls: "lc-modal-cancel", text: t("cancel") });
+    const saveBtn = row.createEl("button", { cls: "mod-cta", text: t("save") });
+
+    cancelBtn.addEventListener("click", () => this.finish(null));
+
+    saveBtn.addEventListener("click", () => {
+      void (async () => {
+      const name = bookInput.value.trim();
+      const author = authorInput.value.trim() || undefined;
+      const bookType = typeSelect.value as BookType;
+      const value = valueInput.valueAsNumber || undefined;
+      const rating = ratingInput.valueAsNumber || undefined;
+      const dateStarted = dateStartInput.value || today;
+      const dateFinished = dateEndInput.value || undefined;
+
+      if (!name) {
+        new Notice(t("enterBookTitle"));
+        return;
+      }
+
+      const bookDef = this.plugin.bookTrackerStore.getBookByName(name) ||
+                      books.find(b => b.name.toLowerCase() === name.toLowerCase());
+      const bookId = this.prefill?.bookId || (bookDef ? bookDef.id : (entry?.bookId || `book_${name.toLowerCase().replace(/\s+/g, '_')}_${Date.now()}`));
+
+      const result: BookEntry = {
+        id: entry?.id || `entry_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`,
+        bookId,
+        name,
+        author,
+        unit: 'pages',
+        date: dateReadWrap.isShown() ? (dateReadInput.value || dateStarted) : dateStarted,
+        createdAt: entry?.createdAt || new Date().toISOString(),
+      };
+
+      if (value !== undefined && value > 0) result.value = value;
+      if (rating !== undefined && rating > 0) result.rating = rating;
+      if (dateStarted) result.dateStarted = dateStarted;
+      if (dateFinished) result.dateFinished = dateFinished;
+      if (bookType) result.bookType = bookType;
+
+      await this.onSave(result);
+      this.finish(result);
+      })();
+    });
+  }
+
+  private confirmDeleteBook(bookName: string): void {
+    const onDelete = this.options?.onDeleteBook;
+    const app = this.app;
+    const finish = () => this.finish(null);
+    const modal = new (class extends Modal {
+      onOpen(): void {
+        this.contentEl.addClass("lc-modal");
+        this.contentEl.createEl("h3", { text: t("deleteBookTitle") });
+        this.contentEl.createEl("p", { text: t("deleteBookWarning", { name: bookName }) });
+        const row = this.contentEl.createDiv({ cls: "lc-modal-row" });
+        row.createEl("button", { cls: "lc-modal-cancel", text: t("cancel") }).addEventListener("click", () => this.close());
+        row.createEl("button", { cls: "mod-cta mod-warning", text: t("deleteBookConfirm") }).addEventListener("click", () => {
+          void (async () => {
+            if (onDelete) await onDelete(bookName);
+            this.close();
+            finish();
+          })();
+        });
+      }
+    })(app);
+    modal.open();
+  }
+
+  onClose(): void {
+    this.contentEl.empty();
+    if (this.resolveFn) {
+      this.resolveFn(this.result);
+      this.resolveFn = null;
+    }
   }
 }

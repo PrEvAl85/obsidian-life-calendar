@@ -741,3 +741,280 @@
   max-height: 220px;
   border-radius: 4px;
 }
+
+/* ===== Exercise Tracker ===== */
+.tracker-summary {
+  display: flex;
+  gap: 12px;
+  margin-bottom: 16px;
+  flex-wrap: wrap;
+}
+.tracker-stat-card {
+  flex: 1;
+  min-width: 120px;
+  padding: 12px;
+  background: var(--background-secondary);
+  border-radius: 8px;
+  text-align: center;
+  border: 1px solid var(--background-modifier-border);
+}
+.tracker-stat-value {
+  font-size: 24px;
+  font-weight: 700;
+  color: var(--text-accent);
+}
+.tracker-stat-label {
+  font-size: 11px;
+  color: var(--text-muted);
+  margin-top: 4px;
+}
+
+.tracker-heatmap {
+  margin-bottom: 20px;
+}
+.tracker-months {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 12px;
+}
+.tracker-month {
+  border: 1px solid var(--background-modifier-border);
+  border-radius: 8px;
+  padding: 8px;
+}
+.tracker-month-header {
+  font-weight: 600;
+  margin-bottom: 4px;
+  text-align: center;
+}
+.tracker-dow {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 2px;
+  font-size: 10px;
+  color: var(--text-muted);
+  margin-bottom: 2px;
+}
+.tracker-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 2px;
+}
+.tracker-day {
+  aspect-ratio: 1;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 10px;
+  cursor: pointer;
+}
+.tracker-day.empty {
+  background: transparent;
+}
+.tracker-day.level-0 { background: #ebedf0; }
+.tracker-day.level-1 { background: #9be9a8; }
+.tracker-day.level-2 { background: #40c463; }
+.tracker-day.level-2 { background: #40c463; }
+.tracker-day.level-3 { background: #30a14e; }
+.tracker-day.level-4 { background: #216e39; }
+.tracker-day.tracker-day-book { background: #c8e6c9; }
+.tracker-day.today { outline: 2px solid var(--text-accent); }
+.tracker-day.selected { outline: 2px solid var(--interactive-accent); }
+.tracker-day:hover { transform: scale(1.2); z-index: 10; }
+
+.tracker-day-detail {
+  margin-top: 12px;
+  padding: 12px;
+  background: var(--background-secondary);
+  border-radius: 8px;
+  border: 1px solid var(--background-modifier-border);
+}
+.tracker-tables {
+  margin-top: 16px;
+}
+.tracker-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12px;
+}
+.tracker-table th, .tracker-table td {
+  padding: 4px 8px;
+  border-bottom: 1px solid var(--background-modifier-border);
+  text-align: right;
+}
+.tracker-table th:first-child, .tracker-table td:first-child {
+  text-align: left;
+}
+.tracker-total {
+  font-weight: 600;
+  color: var(--text-accent);
+}
+.tracker-hint {
+  color: var(--text-muted);
+  text-align: center;
+  padding: 24px;
+}
+
+.tracker-toolbar {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  align-items: center;
+  margin-bottom: 12px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--background-modifier-border);
+}
+.tracker-title {
+  font-weight: 600;
+}
+.tracker-year-label {
+  color: var(--text-muted);
+  font-size: 13px;
+}
+.tracker-day-detail-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+}
+.tracker-day-list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.tracker-day-item {
+  padding: 4px 8px;
+  background: var(--background-primary);
+  border-radius: 4px;
+  font-size: 13px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+}
+.tracker-day-del {
+  background: transparent;
+  border: none;
+  color: var(--text-error);
+  cursor: pointer;
+  font-size: 14px;
+  padding: 0 4px;
+  opacity: 0.7;
+}
+.tracker-day-del:hover {
+  opacity: 1;
+}
+.tracker-table-title {
+  font-weight: 600;
+  margin-top: 12px;
+  margin-bottom: 4px;
+}
+.tracker-read-books {
+  margin-top: 16px;
+  border-top: 1px solid var(--background-modifier-border);
+  padding-top: 8px;
+}
+.tracker-read-books-list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.tracker-read-book-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+}
+.tracker-read-book-name {
+  font-weight: 600;
+}
+.tracker-read-book-author {
+  color: var(--text-muted);
+}
+.tracker-read-book-date {
+  color: var(--text-muted);
+  margin-left: auto;
+  white-space: nowrap;
+}
+.tracker-read-book-value {
+  color: var(--text-accent);
+  white-space: nowrap;
+}
+.lc-ex-color {
+  display: inline-block;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  margin-right: 8px;
+  vertical-align: middle;
+}
+.tracker-year-select, .tracker-exercise-select {
+  font-size: 13px;
+  padding: 3px 8px;
+  background: var(--background-secondary);
+  border: 1px solid var(--background-modifier-border);
+  border-radius: 4px;
+}
+.tracker-toolbar-spacer {
+  flex: 1;
+}
+
+/* Dropdown для кнопки Трекеры */
+.lc-tracker-dropdown-wrap {
+  position: relative;
+  display: inline-block;
+  overflow: visible;
+}
+.lc-tracker-dropdown-wrap select {
+  font-family: inherit;
+  font-size: 12px;
+  background: var(--background-secondary-alt);
+  color: var(--text-normal);
+  border: 1px solid var(--background-modifier-border);
+  border-radius: 4px;
+  padding: 3px 10px;
+  cursor: pointer;
+}
+.lc-test-badge {
+  position: absolute;
+  top: 0;
+  right: 0;
+  transform: translate(35%, -40%) rotate(45deg);
+  color: var(--color-red, #e03131);
+  font-style: italic;
+  font-weight: 700;
+  font-size: 10px;
+  line-height: 1;
+  opacity: 0.8;
+  pointer-events: none;
+  white-space: nowrap;
+  z-index: 1;
+}
+.lc-tracker-dropdown {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  z-index: 100;
+  background: var(--background-primary);
+  border: 1px solid var(--background-modifier-border);
+  border-radius: 6px;
+  box-shadow: var(--shadow-s);
+  min-width: 120px;
+  display: none;
+}
+.lc-tracker-dropdown.show {
+  display: block;
+}
+.lc-tracker-menu {
+  padding: 4px 0;
+}
+.lc-tracker-item {
+  padding: 6px 10px;
+  cursor: pointer;
+  font-size: 13px;
+  white-space: nowrap;
+}
+.lc-tracker-item:hover {
+  background: var(--background-modifier-hover);
+}

@@ -20,6 +20,6 @@ export default defineConfig([
     },
   },
   {
-    ignores: ["main.js", "styles.css", "manifest.json", "node_modules/", "esbuild.config.mjs"],
+    ignores: ["main.js", "styles.css", "manifest.json", "node_modules/", "dist/", "esbuild.config.mjs", "*.txt"],
   },
 ]);
