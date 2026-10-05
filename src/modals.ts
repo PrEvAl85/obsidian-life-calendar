@@ -4,7 +4,7 @@ import {
   HEART_COLORS, JournalEntry, LifeEvent, LifeZone, ZONE_COLORS,
   BookDefinition, BookEntry, BookType, BOOK_TYPE_OPTIONS
 } from "./types";
-import { keyToDmy, weekdayName } from "./util";
+import { keyToDmy, weekdayName, extractTags, stripTags } from "./util";
 import { t, monthNameGen } from "./i18n";
 import { ImportResult, InvalidBackupError } from "./import";
 import { AddExerciseRecordModal } from "./AddExerciseRecordModal";
@@ -208,6 +208,193 @@ class WikiLinkSuggest {
   }
 }
 
+/** Все существующие в дневнике теги (уникальные, отсортированы по частоте). */
+async function loadJournalTags(app: App, folder: string): Promise<string[]> {
+  const fileRe = /^(\d{1,2})\.(\d{1,2})\.(\d{4})\.md$/;
+  const files = app.vault
+    .getFiles()
+    .filter((f) => f.path.startsWith(folder + "/") && f.path.endsWith(".md") && fileRe.test(f.name));
+  const contents = await Promise.all(files.map((f) => app.vault.read(f)));
+  const count = new Map<string, number>();
+  for (const c of contents) {
+    for (const tag of extractTags(c)) count.set(tag, (count.get(tag) ?? 0) + 1);
+  }
+  return [...count.entries()]
+    .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))
+    .map((x) => x[0]);
+}
+
+/**
+ * Поле ввода тегов: чипы выбранных тегов + подсказки существующих.
+ * Свои теги добавляются по Enter/запятой, существующие — из списка.
+ */
+class TagPicker {
+  private container: HTMLElement;
+  private chipsEl: HTMLElement;
+  private input: HTMLInputElement;
+  private suggestEl: HTMLElement | null = null;
+  private items: string[] = [];
+  private selectedIndex = -1;
+  private isOpen = false;
+  private tags: string[] = [];
+  private existing: string[] = [];
+  private existingLoaded = false;
+  private getExisting: () => Promise<string[]>;
+
+  constructor(parent: HTMLElement, getExisting: () => Promise<string[]>) {
+    this.getExisting = getExisting;
+    this.container = parent.createDiv({ cls: "lc-tag-picker" });
+    this.chipsEl = this.container.createDiv({ cls: "lc-tag-picker-chips" });
+    this.input = this.container.createEl("input", {
+      cls: "lc-tag-picker-input",
+      attr: { type: "text", placeholder: t("tagsPlaceholder") },
+    });
+    this.input.addEventListener("input", () => void this.onInput());
+    this.input.addEventListener("keydown", (e) => this.onKeydown(e));
+    this.input.addEventListener("focus", () => void this.onInput());
+    this.input.addEventListener("blur", () => window.setTimeout(() => this.close(), 150));
+    this.renderChips();
+  }
+
+  setTags(tags: string[]): void {
+    this.tags = [...tags];
+    this.renderChips();
+  }
+
+  getTags(): string[] {
+    return [...this.tags];
+  }
+
+  private async loadExisting(): Promise<void> {
+    if (this.existingLoaded) return;
+    this.existing = await this.getExisting();
+    this.existingLoaded = true;
+  }
+
+  private addTag(name: string): void {
+    const tag = name.trim().replace(/^#+/, "");
+    if (!tag) return;
+    if (this.tags.some((x) => x.toLowerCase() === tag.toLowerCase())) return;
+    this.tags.push(tag);
+    this.renderChips();
+  }
+
+  private removeTag(index: number): void {
+    this.tags.splice(index, 1);
+    this.renderChips();
+  }
+
+  private renderChips(): void {
+    this.chipsEl.empty();
+    for (let i = 0; i < this.tags.length; i++) {
+      const chip = this.chipsEl.createSpan({ cls: "lc-tag-chip" });
+      chip.createSpan({ text: "#" + this.tags[i] });
+      const x = chip.createEl("button", { cls: "lc-tag-chip-x", text: "×", attr: { type: "button" } });
+      x.addEventListener("click", () => this.removeTag(i));
+    }
+  }
+
+  private async onInput(): Promise<void> {
+    const q = this.input.value.trim();
+    if (!q) {
+      this.close();
+      return;
+    }
+    await this.loadExisting();
+    const lower = q.toLowerCase();
+    this.items = this.existing
+      .filter(
+        (tag) =>
+          !this.tags.some((sel) => sel.toLowerCase() === tag.toLowerCase()) &&
+          tag.toLowerCase().includes(lower),
+      )
+      .slice(0, 10);
+    if (this.items.length > 0) this.open();
+    else this.close();
+  }
+
+  private open(): void {
+    if (this.isOpen) {
+      this.render();
+      return;
+    }
+    this.isOpen = true;
+    this.selectedIndex = -1;
+    this.suggestEl = this.container.createDiv({ cls: "lc-suggest lc-tag-suggest" });
+    this.render();
+  }
+
+  private render(): void {
+    if (!this.suggestEl) return;
+    this.suggestEl.empty();
+    for (let i = 0; i < this.items.length; i++) {
+      const el = this.suggestEl.createDiv({ cls: "lc-suggest-item" });
+      if (i === this.selectedIndex) el.addClass("is-selected");
+      el.createSpan({ text: "#" + this.items[i] });
+      el.addEventListener("mousedown", (e) => {
+        e.preventDefault();
+        this.select(i);
+      });
+      el.addEventListener("mouseenter", () => {
+        this.selectedIndex = i;
+        this.render();
+      });
+    }
+  }
+
+  private select(index: number): void {
+    const tag = this.items[index];
+    if (!tag) return;
+    this.addTag(tag);
+    this.input.value = "";
+    this.close();
+    this.input.focus();
+  }
+
+  private onKeydown(e: KeyboardEvent): void {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      if (this.isOpen && this.selectedIndex >= 0) {
+        this.select(this.selectedIndex);
+      } else if (this.input.value.trim()) {
+        this.addTag(this.input.value);
+        this.input.value = "";
+        this.close();
+      }
+    } else if (e.key === ",") {
+      e.preventDefault();
+      if (this.input.value.trim()) {
+        this.addTag(this.input.value);
+        this.input.value = "";
+      }
+    } else if (e.key === "Backspace" && !this.input.value && this.tags.length > 0) {
+      this.removeTag(this.tags.length - 1);
+    } else if (this.isOpen && this.items.length > 0) {
+      if (e.key === "ArrowDown") {
+        e.preventDefault();
+        this.selectedIndex = Math.min(this.selectedIndex + 1, this.items.length - 1);
+        this.render();
+      } else if (e.key === "ArrowUp") {
+        e.preventDefault();
+        this.selectedIndex = Math.max(this.selectedIndex - 1, 0);
+        this.render();
+      } else if (e.key === "Escape") {
+        e.preventDefault();
+        this.close();
+      }
+    }
+  }
+
+  private close(): void {
+    if (!this.isOpen) return;
+    this.isOpen = false;
+    if (this.suggestEl) {
+      this.suggestEl.remove();
+      this.suggestEl = null;
+    }
+  }
+}
+
 /** Модалка выбора изображения: из хранилища или с компьютера. */
 export class ImageSelectModal extends Modal {
   private activeTab: "vault" | "computer" = "vault";
@@ -352,13 +539,13 @@ export class ImageSelectModal extends Modal {
 /** Модалка добавления записи в дневник. */
 export class AddEntryModal extends Modal {
   private dateValue: string;
-  private saveHandler: (date: string, text: string) => Promise<void>;
+  private saveHandler: (date: string, text: string, tags?: string[]) => Promise<void>;
   private journalFolder: string;
 
   constructor(
     app: App,
     defaultDate: string,
-    saveHandler: (date: string, text: string) => Promise<void>,
+    saveHandler: (date: string, text: string, tags?: string[]) => Promise<void>,
     journalFolder: string = "Life Calendar/Journal",
   ) {
     super(app);
@@ -439,19 +626,24 @@ imageBtn.addEventListener("click", () => {
       }, this.journalFolder).open();
     });
 
-    const row = contentEl.createDiv({ cls: "lc-modal-row" });
-    row.createEl("button", { cls: "lc-modal-cancel", text: t("cancel") }).addEventListener("click", () => this.close());
-    const save = row.createEl("button", { cls: "mod-cta", text: t("save") });
+     // Теги
+     const tagWrap = contentEl.createDiv({ cls: "lc-modal-field" });
+     tagWrap.createEl("label", { text: t("tagsLabel") });
+     const tagPicker = new TagPicker(tagWrap, () => loadJournalTags(this.app, this.journalFolder));
 
-    const doSave = async () => {
-      const text = ta.value.trim();
-      if (!text) {
-        new Notice(t("enterEntryText"));
-        return;
-      }
-      try {
-        await this.saveHandler(this.dateValue, text);
-        this.close();
+     const row = contentEl.createDiv({ cls: "lc-modal-row" });
+     row.createEl("button", { cls: "lc-modal-cancel", text: t("cancel") }).addEventListener("click", () => this.close());
+     const save = row.createEl("button", { cls: "mod-cta", text: t("save") });
+
+     const doSave = async () => {
+       const text = ta.value.trim();
+       if (!text) {
+         new Notice(t("enterEntryText"));
+         return;
+       }
+       try {
+         await this.saveHandler(this.dateValue, text, tagPicker.getTags());
+         this.close();
       } catch (err: unknown) {
         console.error("Life Calendar: add entry", err);
         new Notice(t("genericError", { error: err instanceof Error ? err.message : String(err) }));
@@ -831,8 +1023,8 @@ class EventEditModal extends Modal {
 
 /** Обработчики изменений для окна недели. */
 export interface WeekHandlers {
-  addEntry: (date: string, text: string) => Promise<void>;
-  updateEntry: (oldDate: string, index: number, newDate: string, text: string) => Promise<void>;
+  addEntry: (date: string, text: string, tags?: string[]) => Promise<void>;
+  updateEntry: (oldDate: string, index: number, newDate: string, text: string, tags?: string[]) => Promise<void>;
   deleteEntry: (date: string, index: number) => Promise<void>;
   moveEntry: (date: string, index: number, dir: -1 | 1) => Promise<void>;
   addEvent: (ev: LifeEvent) => Promise<void>;
@@ -892,8 +1084,8 @@ export class WeekModal extends Modal {
     eHead.createSpan({ cls: "lc-week-block-title", text: t("weekEntriesSection") });
     eHead.createEl("button", { cls: "mod-cta lc-week-add", text: t("addEntry") }).addEventListener("click", () => {
       void (async () => {
-        new AddEntryModal(this.app, wkStart, async (date, text) => {
-          await this.handlers.addEntry(date, text);
+        new AddEntryModal(this.app, wkStart, async (date, text, tags) => {
+          await this.handlers.addEntry(date, text, tags);
           await this.reload();
         }).open();
       })();
@@ -931,13 +1123,13 @@ export class WeekModal extends Modal {
       editBtn.title = t("edit");
       editBtn.addEventListener("click", () => {
         void (async () => {
-          const m = new EntryEditModal(this.app, { date: e.date, text: e.text, rawText: e.rawText }, this.journalFolder);
-          m.open();
-          const res = await m.awaitResult();
-          if (res) {
-            await this.handlers.updateEntry(e.date, e.index, res.date, res.text);
-            await this.reload();
-          }
+            const m = new EntryEditModal(this.app, { date: e.date, text: e.text, rawText: e.rawText }, this.journalFolder);
+            m.open();
+            const res = await m.awaitResult();
+            if (res) {
+              await this.handlers.updateEntry(e.date, e.index, res.date, res.text, res.tags);
+              await this.reload();
+            }
         })();
       });
       const delBtn = btns.createEl("button", { cls: "lc-week-btn", text: "🗑" });
@@ -955,6 +1147,12 @@ export class WeekModal extends Modal {
           await this.handlers.openDayNote(e.path);
         })();
       });
+      // Чипы тегов
+      const tags = e.tags ?? [];
+      if (tags.length > 0) {
+        const tagRow = item.createDiv({ cls: "lc-tag-row" });
+        for (const tag of tags) tagRow.createSpan({ cls: "lc-tag-chip", text: "#" + tag });
+      }
       // Рендерим текст через MarkdownRenderer для поддержки [[wiki-links]] и ![[images]]
       const rendered = item.createDiv({ cls: "lc-week-item-rendered" });
       const renderComponent = new Component();
@@ -1022,7 +1220,7 @@ export class WeekModal extends Modal {
 
 /** Интерфейс для обработчиков операций в Feed. */
 export interface FeedHandlers {
-  updateEntry: (oldDate: string, index: number, newDate: string, text: string) => Promise<void>;
+  updateEntry: (oldDate: string, index: number, newDate: string, text: string, tags?: string[]) => Promise<void>;
   deleteEntry: (date: string, index: number) => Promise<void>;
   moveEntry: (date: string, index: number, dir: -1 | 1) => Promise<void>;
   openDayNote: (path: string) => Promise<void>;
@@ -1037,6 +1235,8 @@ export class FeedModal extends Modal {
   private dateTo = "";
   private hasImagesOnly = false;
   private sortDescending = true; // true = новые сверху (desc), false = старые сверху (asc)
+  private selectedTag = "";
+  private tagSelect: HTMLSelectElement | null = null;
   private journalFolder: string;
   private handlers: FeedHandlers;
   private listContainer: HTMLElement | null = null;
@@ -1116,6 +1316,16 @@ export class FeedModal extends Modal {
     });
     imagesWrap.createEl("label", { text: t("feedFilterHasImages"), cls: "lc-feed-filter-label" });
 
+    // Фильтр по тегу
+    const tagWrap = filterBar.createDiv({ cls: "lc-feed-filter-item" });
+    tagWrap.createEl("label", { text: t("feedFilterTag"), cls: "lc-feed-filter-label" });
+    this.tagSelect = tagWrap.createEl("select", { cls: "lc-feed-tag-select" });
+    this.tagSelect.createEl("option", { text: t("feedAllTags"), value: "" });
+    this.tagSelect.addEventListener("change", () => {
+      this.selectedTag = this.tagSelect ? this.tagSelect.value : "";
+      this.debouncedRender();
+    });
+
     // Переключатель сортировки
     const sortWrap = filterBar.createDiv({ cls: "lc-feed-filter-item lc-feed-filter-sort" });
     sortWrap.createEl("label", { text: this.sortDescending ? t("feedSortNewest") : t("feedSortOldest"), cls: "lc-feed-filter-label" });
@@ -1144,7 +1354,30 @@ export class FeedModal extends Modal {
 
   private async loadAndRender(): Promise<void> {
     this.allEntries = await this.loadEntries();
+    this.updateTagOptions();
     this.applyFiltersAndRender();
+  }
+
+  /** Пересобирает список опций фильтра по тегу (по частоте использования). */
+  private updateTagOptions(): void {
+    if (!this.tagSelect) return;
+    const counts = new Map<string, number>();
+    for (const e of this.allEntries) {
+      for (const tag of e.tags ?? []) counts.set(tag, (counts.get(tag) ?? 0) + 1);
+    }
+    const current = this.selectedTag;
+    this.tagSelect.empty();
+    this.tagSelect.createEl("option", { text: t("feedAllTags"), value: "" });
+    const sorted = [...counts.entries()].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]));
+    for (const [tag] of sorted) {
+      this.tagSelect.createEl("option", { text: "#" + tag, value: tag });
+    }
+    if (counts.has(current) || !current) {
+      this.tagSelect.value = current;
+    } else {
+      this.selectedTag = "";
+      this.tagSelect.value = "";
+    }
   }
 
   private applyFiltersAndRender(): void {
@@ -1162,6 +1395,12 @@ export class FeedModal extends Modal {
       if (this.hasImagesOnly) {
         const hasImage = /!\[\[[^\]]+\]\]/.test(entry.rawText || entry.text);
         if (!hasImage) return false;
+      }
+      // По тегу
+      if (this.selectedTag) {
+        const lower = this.selectedTag.toLowerCase();
+        const has = (entry.tags ?? []).some((tg) => tg.toLowerCase() === lower);
+        if (!has) return false;
       }
       return true;
     });
@@ -1297,7 +1536,7 @@ export class FeedModal extends Modal {
         modal.open();
         const res = await modal.awaitResult();
         if (res) {
-          await this.handlers.updateEntry(entry.date, entry.index, res.date, res.text);
+          await this.handlers.updateEntry(entry.date, entry.index, res.date, res.text, res.tags);
           await this.refresh();
         }
       })();
@@ -1325,6 +1564,22 @@ export class FeedModal extends Modal {
     const renderComponent = new Component();
     renderComponent.load();
     void MarkdownRenderer.render(this.app, entry.rawText || entry.text, rendered, entry.path, renderComponent);
+
+    // Чипы тегов (клик — фильтр по этому тегу)
+    const tags = entry.tags ?? [];
+    if (tags.length > 0) {
+      const tagRow = card.createDiv({ cls: "lc-tag-row" });
+      for (const tag of tags) {
+        const chip = tagRow.createSpan({ cls: "lc-tag-chip lc-feed-tag-chip", text: "#" + tag });
+        chip.addEventListener("click", () => {
+          if (this.tagSelect) {
+            this.tagSelect.value = tag;
+            this.selectedTag = tag;
+          }
+          this.debouncedRender();
+        });
+      }
+    }
   }
 
   private confirmDelete(onConfirm: () => void): void {
@@ -1345,6 +1600,7 @@ export class FeedModal extends Modal {
 
   private async refresh(): Promise<void> {
     this.allEntries = await this.loadEntries();
+    this.updateTagOptions();
     this.applyFiltersAndRender();
   }
 
@@ -1354,11 +1610,11 @@ export class FeedModal extends Modal {
   }
 }
 
-/** Модалка редактирования записи дневника (дата + текст). */
+/** Модалка редактирования записи дневника (дата + текст + теги). */
 export class EntryEditModal extends Modal {
-  private result: { date: string; text: string } | null = null;
-  private resolveFn: ((v: { date: string; text: string } | null) => void) | null = null;
-  private promise: Promise<{ date: string; text: string } | null>;
+  private result: { date: string; text: string; tags?: string[] } | null = null;
+  private resolveFn: ((v: { date: string; text: string; tags?: string[] } | null) => void) | null = null;
+  private promise: Promise<{ date: string; text: string; tags?: string[] } | null>;
   private journalFolder: string;
 
    constructor(
@@ -1373,11 +1629,11 @@ export class EntryEditModal extends Modal {
     });
   }
 
-  awaitResult(): Promise<{ date: string; text: string } | null> {
+  awaitResult(): Promise<{ date: string; text: string; tags?: string[] } | null> {
     return this.promise;
   }
 
-  private finish(v: { date: string; text: string } | null): void {
+  private finish(v: { date: string; text: string; tags?: string[] } | null): void {
     this.result = v;
     this.close();
   }
@@ -1400,11 +1656,13 @@ export class EntryEditModal extends Modal {
     const linkBtn = toolbar.createEl("button", { type: "button", cls: "lc-modal-toolbar-btn", text: "🔗 " + t("insertLink") });
     const imageBtn = toolbar.createEl("button", { type: "button", cls: "lc-modal-toolbar-btn", text: "🖼 " + t("insertImage") });
 
-    const ta = textWrap.createEl("textarea", {
-      cls: "lc-modal-textarea",
-      attr: { rows: "6", placeholder: t("entryTextPlaceholder") },
-    });
-    ta.value = this.initial.rawText ?? this.initial.text;
+     const ta = textWrap.createEl("textarea", {
+       cls: "lc-modal-textarea",
+       attr: { rows: "6", placeholder: t("entryTextPlaceholder") },
+     });
+     const initialText = this.initial.rawText ?? this.initial.text;
+     // Теги выносятся в поле тегов, из текста убираются
+     ta.value = stripTags(initialText);
 
     // Контейнер для превью изображений
     const previewContainer = textWrap.createDiv({ cls: "lc-modal-preview" });
@@ -1454,8 +1712,14 @@ imageBtn.addEventListener("click", () => {
       }, this.journalFolder).open();
     });
 
-    const row = contentEl.createDiv({ cls: "lc-modal-row" });
-    row.createEl("button", { cls: "lc-modal-cancel", text: t("cancel") }).addEventListener("click", () => this.finish(null));
+     // Теги
+     const tagWrap = contentEl.createDiv({ cls: "lc-modal-field" });
+     tagWrap.createEl("label", { text: t("tagsLabel") });
+     const tagPicker = new TagPicker(tagWrap, () => loadJournalTags(this.app, this.journalFolder));
+     tagPicker.setTags(extractTags(initialText));
+
+     const row = contentEl.createDiv({ cls: "lc-modal-row" });
+     row.createEl("button", { cls: "lc-modal-cancel", text: t("cancel") }).addEventListener("click", () => this.finish(null));
     const save = row.createEl("button", { cls: "mod-cta", text: t("save") });
 
     const doSave = () => {
@@ -1469,7 +1733,7 @@ imageBtn.addEventListener("click", () => {
         new Notice(t("invalidDate"));
         return;
       }
-      this.finish({ date, text });
+      this.finish({ date, text, tags: tagPicker.getTags() });
     };
     save.addEventListener("click", doSave);
     ta.addEventListener("keydown", (e) => {

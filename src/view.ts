@@ -513,8 +513,8 @@ export class LifeCalendarView extends ItemView {
     const today = todayKey();
 
     addBtn.addEventListener("click", () => {
-      new AddEntryModal(this.app, today, async (date, text) => {
-        const path = await this.plugin.journal.addEntry(date, text);
+      new AddEntryModal(this.app, today, async (date, text, tags) => {
+        const path = await this.plugin.journal.addEntry(date, text, undefined, tags);
         new Notice(t("entryAdded", { path }));
         await this.render();
       }, this.plugin.settings.journalFolder).open();
@@ -545,8 +545,8 @@ export class LifeCalendarView extends ItemView {
         this.app,
         () => this.plugin.journal.listAll(),
         {
-          updateEntry: async (oldDate, index, newDate, text) => {
-            await this.plugin.journal.updateEntry(oldDate, index, newDate, text);
+          updateEntry: async (oldDate, index, newDate, text, tags) => {
+            await this.plugin.journal.updateEntry(oldDate, index, newDate, text, tags);
           },
           deleteEntry: async (date, index) => {
             await this.plugin.journal.deleteEntry(date, index);
@@ -608,11 +608,11 @@ export class LifeCalendarView extends ItemView {
           };
         },
         {
-          addEntry: async (date, text) => {
-            await this.plugin.journal.addEntry(date, text);
+          addEntry: async (date, text, tags) => {
+            await this.plugin.journal.addEntry(date, text, undefined, tags);
           },
-          updateEntry: async (oldDate, index, newDate, text) => {
-            await this.plugin.journal.updateEntry(oldDate, index, newDate, text);
+          updateEntry: async (oldDate, index, newDate, text, tags) => {
+            await this.plugin.journal.updateEntry(oldDate, index, newDate, text, tags);
           },
           deleteEntry: async (date, index) => {
             await this.plugin.journal.deleteEntry(date, index);

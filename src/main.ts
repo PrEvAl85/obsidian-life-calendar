@@ -53,9 +53,9 @@ export default class LifeCalendarPlugin extends Plugin {
       id: "add-entry",
       name: t("cmdAddEntry"),
       callback: () => {
-        new AddEntryModal(this.app, todayKey(), async (date, text) => {
+        new AddEntryModal(this.app, todayKey(), async (date, text, tags) => {
           try {
-            const path = await this.journal.addEntry(date, text);
+            const path = await this.journal.addEntry(date, text, undefined, tags);
             new Notice(t("entryAdded", { path }));
           } catch (err: unknown) {
             console.error("Life Calendar: add entry", err);
@@ -239,9 +239,9 @@ export default class LifeCalendarPlugin extends Plugin {
         }).open();
         break;
       case "tasks":
-        new AddEntryModal(this.app, todayKey(), async (date, text) => {
+        new AddEntryModal(this.app, todayKey(), async (date, text, tags) => {
           try {
-            const path = await this.journal.addEntry(date, text);
+            const path = await this.journal.addEntry(date, text, undefined, tags);
             new Notice(t("entryAdded", { path }));
           } catch (err: unknown) {
             console.error("Life Calendar: add entry", err);

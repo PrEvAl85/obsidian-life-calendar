@@ -1,6 +1,6 @@
 import { App, TFile } from "obsidian";
 import { JournalEntry, LifeCalendarSettings } from "./types";
-import { cleanNoteText, cleanNoteTextForDisplay, ensureFolder, keyToDmy, pad } from "./util";
+import { cleanNoteText, cleanNoteTextForDisplay, ensureFolder, extractTags, keyToDmy, pad, stripTags } from "./util";
 import { monthNameGen } from "./i18n";
 import { mondayKeyOf } from "./date";
 
@@ -55,7 +55,7 @@ export class JournalStore {
     for (let i = 0; i < blocks.length; i++) {
       const text = cleanNoteText(blocks[i]);
       const rawText = cleanNoteTextForDisplay(blocks[i]);
-      if (text || rawText) out.push({ date: dateKey, text, rawText, path, index: i, blocks: blocks.length });
+      if (text || rawText) out.push({ date: dateKey, text, rawText, tags: extractTags(blocks[i]), path, index: i, blocks: blocks.length });
     }
     return out;
   }
@@ -75,13 +75,19 @@ export class JournalStore {
     return (await this.getWeek(weekKey)).length > 0;
   }
 
-  /** Добавление записи за дату: дополняет файл дня или создаёт новый. */
-  async addEntry(dateKey: string, text: string, rawText?: string): Promise<string> {
+  /** Добавление записи за дату: дополняет файл дня или создаёт новый. Теги добавляются в конец блока. */
+  async addEntry(dateKey: string, text: string, rawText?: string, tags?: string[]): Promise<string> {
+    const block = buildBlock(rawText !== undefined ? rawText : text, tags);
+    return await this.writeBlock(dateKey, block);
+  }
+
+  /** Запись готового блока (без обработки тегов) в файл дня: дополняет или создаёт. */
+  private async writeBlock(dateKey: string, block: string): Promise<string> {
     const path = this.pathFor(dateKey);
     const file = this.app.vault.getAbstractFileByPath(path) as TFile | null;
     if (file) {
       const existing = await this.app.vault.read(file);
-      const content = existing.replace(/\s*$/m, "") + "\n\n---\n\n" + text.trim() + "\n";
+      const content = existing.replace(/\s*$/m, "") + "\n\n---\n\n" + block + "\n";
       await this.app.vault.modify(file, content);
       return path;
     }
@@ -91,7 +97,7 @@ export class JournalStore {
     const d = +p[2];
     const header = "# " + d + " " + monthNameGen(m - 1) + " " + y;
     await ensureFolder(this.app, path);
-    await this.app.vault.create(path, header + "\n\n" + (rawText !== undefined ? rawText.trim() : text.trim()) + "\n");
+    await this.app.vault.create(path, header + "\n\n" + block + "\n");
     return path;
   }
 
@@ -99,7 +105,8 @@ export class JournalStore {
    * Обновление записи дня. При смене даты запись переносится в файл нового дня.
    * Возвращает путь файла, где запись оказалась.
    */
-  async updateEntry(oldDate: string, index: number, newDate: string, text: string): Promise<string> {
+  async updateEntry(oldDate: string, index: number, newDate: string, text: string, tags?: string[]): Promise<string> {
+    const block = buildBlock(text, tags);
     const path = this.pathFor(oldDate);
     const file = this.app.vault.getAbstractFileByPath(path) as TFile | null;
     if (file) {
@@ -107,21 +114,16 @@ export class JournalStore {
       const { header, blocks } = splitDayFile(content);
       if (index >= 0 && index < blocks.length) {
         if (newDate === oldDate) {
-          blocks[index] = text.trim();
+          blocks[index] = block;
           await this.app.vault.modify(file, rebuildDay(header, blocks));
           return path;
         }
-        const rawText = this.getRawText(blocks, index);
         blocks.splice(index, 1);
         await this.app.vault.modify(file, rebuildDay(header, blocks));
-        return await this.addEntry(newDate, text, rawText);
+        return await this.writeBlock(newDate, block);
       }
     }
-    return await this.addEntry(newDate, text);
-  }
-
-  private getRawText(blocks: string[], index: number): string {
-    return cleanNoteTextForDisplay(blocks[index]);
+    return await this.writeBlock(newDate, block);
   }
 
   /** Удаление записи дня. Возвращает true, если запись найдена и удалена. */
@@ -178,6 +180,13 @@ function splitDayFile(content: string): { header: string; blocks: string[] } {
   const header = content.replace(/\r\n/g, "\n").slice(0, content.replace(/\r\n/g, "\n").length - text.length);
   const blocks = text.split(/\n[ \t]*---[ \t]*\n/).map((b) => b.trim());
   return { header, blocks };
+}
+
+/** Блок записи: текст без хэштегов + выбранные теги в конце. */
+function buildBlock(text: string, tags?: string[]): string {
+  const base = stripTags(text).trim();
+  if (!tags || tags.length === 0) return base;
+  return base + " " + tags.map((tg) => "#" + tg).join(" ");
 }
 
 /** Сборка файла дня из шапки и блоков записей. */

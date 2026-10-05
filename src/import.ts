@@ -1,6 +1,7 @@
 import type { App } from "obsidian";
 import { BackupData, BackupZone, LIFESPAN_MAX, LIFESPAN_MIN, LifeCalendarSettings } from "./types";
 import { isValidKey } from "./date";
+import { cleanNoteText, extractTags } from "./util";
 import type { JournalStore } from "./journal";
 import type { EventsStore } from "./events";
 
@@ -90,7 +91,9 @@ export class ImportManager {
     }
 
     const existing = await this.journal.listAll();
-    const seen = new Set(existing.map((e) => e.date + "\u0000" + e.text));
+    // Дедупликация по «чистому» тексту (без тегов/ссылок/изображений): старый и новый
+    // форматы бэкапа (текст с тегами и без) сопоставляются корректно.
+    const seen = new Set(existing.map((e) => e.date + "\u0000" + cleanNoteText(e.rawText ?? e.text)));
     let entriesAdded = 0;
     let entriesSkipped = 0;
     for (const entry of data.entries) {
@@ -100,12 +103,13 @@ export class ImportManager {
         entriesSkipped++;
         continue;
       }
-      const key = date + "\u0000" + text;
+      const key = date + "\u0000" + cleanNoteText(text);
       if (seen.has(key)) {
         entriesSkipped++;
         continue;
       }
-      await this.journal.addEntry(date, text);
+      // Теги из бэкапа сохраняем, передавая их явно (addEntry уберёт их из текста и допишет в конец)
+      await this.journal.addEntry(date, text, undefined, extractTags(text));
       seen.add(key);
       entriesAdded++;
     }

@@ -19,7 +19,7 @@ export class ExportManager {
       version: 1,
       birthDate: s.birthDate,
       lifespanYears: s.lifespanYears,
-      entries: entries.map((e) => ({ date: e.date, text: e.text })),
+      entries: entries.map((e) => ({ date: e.date, text: e.rawText || e.text })),
       events: events.map((e) => ({ date: e.date, title: e.title, color: argb(e.color) })),
       zones: s.zones.map((z) => ({ title: z.title, start: z.start, end: z.end, color: argb(z.color) })),
     };

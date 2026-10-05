@@ -73,6 +73,35 @@ export function cleanNoteText(content: string): string {
   return text.trim();
 }
 
+/** Regex хэштегов в тексте записей (аналогично cleanNoteText). */
+const TAG_RE = /(?<![\w])#[\wа-яё][\wа-яё-]*/g;
+
+/** Извлекает хэштеги из текста (имена без `#`, без повторений с учётом регистра). */
+export function extractTags(text: string): string[] {
+  const m = text.match(TAG_RE);
+  if (!m) return [];
+  const seen = new Set<string>();
+  const out: string[] = [];
+  for (const tag of m) {
+    const name = tag.slice(1);
+    const key = name.toLowerCase();
+    if (!seen.has(key)) {
+      seen.add(key);
+      out.push(name);
+    }
+  }
+  return out;
+}
+
+/** Удаляет все хэштеги из текста. */
+export function stripTags(text: string): string {
+  return text
+    .replace(TAG_RE, "")
+    .replace(/[ \t]{2,}/g, " ")
+    .replace(/ ?\n ?/g, "\n")
+    .trim();
+}
+
 /** Извлечение текста для отображения: сохраняет вики-ссылки [[...]] и изображения ![[...]]. */
 export function cleanNoteTextForDisplay(content: string): string {
   let text = content.replace(/^\s*<!--.*?-->\s*/s, "");

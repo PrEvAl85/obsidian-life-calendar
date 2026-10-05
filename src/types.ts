@@ -79,6 +79,8 @@ export interface JournalEntry {
   date: string;
   text: string;
   rawText?: string;
+  /** Хэштеги записи (извлечены из текста, без `#`). */
+  tags?: string[];
   path: string;
   /** Индекс записи внутри файла дня (блоки, разделённые `---`). */
   index: number;

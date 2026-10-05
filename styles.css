@@ -524,6 +524,77 @@
   background: var(--background-modifier-hover);
 }
 
+/* Поле тегов: чипы + input + suggest */
+.lc-tag-picker {
+  position: relative;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px;
+  border: 1px solid var(--background-modifier-border);
+  border-radius: 4px;
+  padding: 4px;
+  background: var(--background-primary);
+}
+.lc-tag-picker-chips {
+  display: contents;
+}
+.lc-tag-picker-input {
+  flex: 1;
+  min-width: 140px;
+  border: none;
+  background: transparent;
+  outline: none;
+  font-size: 13px;
+  color: var(--text-normal);
+  padding: 2px;
+}
+.lc-tag-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  background: var(--background-modifier-hover);
+  border-radius: 10px;
+  padding: 2px 8px;
+  font-size: 12px;
+  color: var(--text-muted);
+}
+.lc-tag-chip-x {
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  color: var(--text-muted);
+  font-size: 12px;
+  line-height: 1;
+  padding: 0;
+}
+.lc-tag-chip-x:hover {
+  color: var(--text-normal);
+}
+.lc-tag-suggest {
+  top: 100%;
+  left: 0;
+  right: 0;
+  width: auto;
+  margin-top: 2px;
+}
+.lc-tag-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-top: 6px;
+}
+.lc-feed-tag-chip {
+  cursor: pointer;
+}
+.lc-feed-tag-chip:hover {
+  background: var(--interactive-accent);
+  color: var(--text-on-accent);
+}
+.lc-feed-tag-select {
+  max-width: 180px;
+}
+
 /* Модалка выбора изображения */
 .lc-image-tabs {
   display: flex;
