@@ -56,6 +56,8 @@ const ru = {
   imageDropZone: "Перетащите файл сюда или нажмите для выбора",
   imageImporting: "Импорт изображения…",
   imageImportError: "Ошибка импорта изображения: {error}",
+  imageVaultSearch: "Поиск изображения в хранилище…",
+  imageVaultEmpty: "Изображения не найдены",
 
   // Онбординг
   welcome:
@@ -322,6 +324,8 @@ const en: Dict = {
   imageDropZone: "Drag file here or click to choose",
   imageImporting: "Importing image…",
   imageImportError: "Image import error: {error}",
+  imageVaultSearch: "Search images in vault…",
+  imageVaultEmpty: "No images found",
 
   welcome:
     "Welcome! To build your life calendar, enter your birth date. " +

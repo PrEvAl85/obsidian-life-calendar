@@ -31,6 +31,52 @@ function findImageFile(app: App, nameOrPath: string): TFile | null {
   return files.find((f) => f.basename === nameOrPath) || null;
 }
 
+const OVERFLOW_AUTO = "auto";
+const OVERFLOW_HIDDEN = "hidden";
+const HEIGHT_RESET = "auto";
+
+/** Устройство без мыши (телефон/планшет) — там поле ввода растёт само. */
+function isTouchLayout(): boolean {
+  return typeof window !== "undefined" && window.matchMedia("(pointer: coarse)").matches;
+}
+
+/**
+ * Поле записи на мобильных: растёт до maxLines видимых строк, дальше текст
+ * прокручивается внутри самого поля, так что последняя строка всегда видна
+ * и не прячется за клавиатурой.
+ * На десктопе высота не трогается — её можно задать вручную, потянув за угол.
+ */
+function autoGrowTextarea(ta: HTMLTextAreaElement, maxLines = 3): void {
+  if (!isTouchLayout()) {
+    ta.style.overflowY = OVERFLOW_AUTO;
+    return;
+  }
+
+  const cs = window.getComputedStyle(ta);
+  const fontSize = parseFloat(cs.fontSize) || 14;
+  const lineHeightRaw = parseFloat(cs.lineHeight);
+  const lineHeight = Number.isFinite(lineHeightRaw) ? lineHeightRaw : fontSize * 1.4;
+  const vPad = (parseFloat(cs.paddingTop) || 0) + (parseFloat(cs.paddingBottom) || 0);
+  const bPad = (parseFloat(cs.borderTopWidth) || 0) + (parseFloat(cs.borderBottomWidth) || 0);
+  const maxH = Math.round(lineHeight * maxLines + vPad + bPad);
+
+  ta.style.height = HEIGHT_RESET;
+  const fullH = ta.scrollHeight;
+  ta.style.height = Math.min(fullH, maxH) + "px";
+  const overflowing = fullH > maxH + 1;
+  ta.style.overflowY = overflowing ? OVERFLOW_AUTO : OVERFLOW_HIDDEN;
+  if (overflowing) ta.scrollTop = ta.scrollHeight;
+
+  // Держим само поле в видимой части модалки (иначе его накрывает клавиатура)
+  const scroller = ta.closest<HTMLElement>(".modal");
+  if (scroller && scroller.scrollHeight > scroller.clientHeight) {
+    const sr = scroller.getBoundingClientRect();
+    const tr = ta.getBoundingClientRect();
+    if (tr.bottom > sr.bottom) scroller.scrollTop += tr.bottom - sr.bottom + 8;
+    else if (tr.top < sr.top) scroller.scrollTop -= sr.top - tr.top + 8;
+  }
+}
+
 /** Кастомный suggest для [[wiki-links]] и ![[images]] в textarea модалок. */
 class WikiLinkSuggest {
   private app: App;
@@ -448,23 +494,43 @@ export class ImageSelectModal extends Modal {
   }
 
   private renderVaultTab(container: HTMLElement): void {
-    const onSelect = (embedSyntax: string) => this.onSelect(embedSyntax);
-    const closeModal = () => this.close();
-    new (class extends FuzzySuggestModal<TFile> {
-      constructor(app: App) { super(app); }
-      getItems(): TFile[] {
-        return this.app.vault.getFiles().filter((f) => {
-          const ext = f.extension.toLowerCase();
-          return ["png", "jpg", "jpeg", "gif", "webp", "svg", "bmp"].includes(ext);
+    const search = container.createEl("input", {
+      cls: "lc-modal-text",
+      attr: { type: "search", placeholder: t("imageVaultSearch") },
+    });
+    const list = container.createDiv({ cls: "lc-image-list" });
+
+    const renderList = () => {
+      list.empty();
+      const query = search.value.trim().toLowerCase();
+      const files = this.app.vault
+        .getFiles()
+        .filter((f) => ["png", "jpg", "jpeg", "gif", "webp", "svg", "bmp"].includes(f.extension.toLowerCase()))
+        .filter((f) => !query || f.path.toLowerCase().includes(query))
+        .sort((a, b) => a.path.localeCompare(b.path));
+      if (!files.length) {
+        list.createDiv({ cls: "lc-image-empty", text: t("imageVaultEmpty") });
+        return;
+      }
+      for (const file of files) {
+        const item = list.createDiv({ cls: "lc-image-item" });
+        const thumb = item.createEl("img", {
+          cls: "lc-image-thumb",
+          attr: { src: this.app.vault.getResourcePath(file), alt: file.basename, loading: "lazy" },
+        });
+        thumb.addEventListener("error", () => thumb.addClass("lc-hidden"));
+        item.createDiv({ cls: "lc-image-name", text: file.basename });
+        item.title = file.path;
+        item.addEventListener("click", () => {
+          this.onSelect(`![[${file.path}]]`);
+          this.close();
         });
       }
-      getItemText(file: TFile): string { return file.path; }
-      onChooseItem(file: TFile): void {
-        this.close();
-        onSelect(`![[${file.path}]]`);
-        closeModal();
-      }
-    })(this.app).open();
+    };
+
+    search.addEventListener("input", renderList);
+    renderList();
+    search.focus();
   }
 
   private renderComputerTab(container: HTMLElement): void {
@@ -556,7 +622,9 @@ export class AddEntryModal extends Modal {
 
   onOpen(): void {
     const { contentEl } = this;
+    this.modalEl.addClass("lc-modal-wide");
     contentEl.addClass("lc-modal");
+    contentEl.addClass("lc-modal-entry");
     contentEl.createEl("h3", { text: t("addEntryTitle") });
 
     const dateWrap = contentEl.createDiv({ cls: "lc-modal-field" });
@@ -567,7 +635,7 @@ export class AddEntryModal extends Modal {
       this.dateValue = dateInput.value;
     });
 
-    const textWrap = contentEl.createDiv({ cls: "lc-modal-field" });
+    const textWrap = contentEl.createDiv({ cls: "lc-modal-field lc-modal-field-wide" });
     textWrap.createEl("label", { text: t("text") });
 
     // Toolbar для вставки ссылок и изображений
@@ -576,8 +644,8 @@ export class AddEntryModal extends Modal {
     const imageBtn = toolbar.createEl("button", { type: "button", cls: "lc-modal-toolbar-btn", text: "🖼 " + t("insertImage") });
 
     const ta = textWrap.createEl("textarea", {
-      cls: "lc-modal-textarea",
-      attr: { rows: "6", placeholder: t("entryTextPlaceholder") },
+      cls: "lc-modal-textarea lc-modal-textarea-auto",
+      attr: { rows: "3", placeholder: t("entryTextPlaceholder") },
     });
 
     // Контейнер для превью изображений
@@ -599,7 +667,10 @@ export class AddEntryModal extends Modal {
       }
       previewContainer.toggleClass("has-content", refs.length > 0);
     };
-    ta.addEventListener("input", updatePreview);
+    ta.addEventListener("input", () => {
+      updatePreview();
+      autoGrowTextarea(ta);
+    });
 
     // Обработчики кнопок тулбара
     const insertAtCursor = (text: string) => {
@@ -1071,6 +1142,9 @@ export class WeekModal extends Modal {
 
     const wkStart = this.weekKey;
     const wkEnd = addDays(wkStart, 6);
+    // Дата по умолчанию: сегодня, если сегодня попадает в эту неделю, иначе понедельник недели
+    const today = todayKey();
+    const defaultDate = today >= wkStart && today <= wkEnd ? today : wkStart;
     contentEl.createEl("h3", {
       text: t("weekTitle", {
         start: formatKey(wkStart),
@@ -1084,10 +1158,10 @@ export class WeekModal extends Modal {
     eHead.createSpan({ cls: "lc-week-block-title", text: t("weekEntriesSection") });
     eHead.createEl("button", { cls: "mod-cta lc-week-add", text: t("addEntry") }).addEventListener("click", () => {
       void (async () => {
-        new AddEntryModal(this.app, wkStart, async (date, text, tags) => {
+        new AddEntryModal(this.app, defaultDate, async (date, text, tags) => {
           await this.handlers.addEntry(date, text, tags);
           await this.reload();
-        }).open();
+        }, this.journalFolder).open();
       })();
     });
     const eList = entriesBlock.createDiv({ cls: "lc-week-list" });
@@ -1167,7 +1241,7 @@ export class WeekModal extends Modal {
     sHead.createSpan({ cls: "lc-week-block-title", text: t("weekEventsSection") });
     sHead.createEl("button", { cls: "mod-cta lc-week-add", text: t("addEvent") }).addEventListener("click", () => {
       void (async () => {
-        const m = new EventEditModal(this.app, { date: wkStart, color: HEART_COLORS[0], title: "" });
+        const m = new EventEditModal(this.app, { date: defaultDate, color: HEART_COLORS[0], title: "" });
         m.open();
         const res = await m.awaitResult();
         if (res) {
@@ -1640,7 +1714,9 @@ export class EntryEditModal extends Modal {
 
   onOpen(): void {
     const { contentEl } = this;
+    this.modalEl.addClass("lc-modal-wide");
     contentEl.addClass("lc-modal");
+    contentEl.addClass("lc-modal-entry");
     contentEl.createEl("h3", { text: t("editEntryTitle") });
 
     const dateWrap = contentEl.createDiv({ cls: "lc-modal-field" });
@@ -1648,7 +1724,7 @@ export class EntryEditModal extends Modal {
     const dateInput = dateWrap.createEl("input", { type: "date" });
     dateInput.value = this.initial.date;
 
-    const textWrap = contentEl.createDiv({ cls: "lc-modal-field" });
+    const textWrap = contentEl.createDiv({ cls: "lc-modal-field lc-modal-field-wide" });
     textWrap.createEl("label", { text: t("text") });
 
     // Toolbar для вставки ссылок и изображений
@@ -1657,8 +1733,8 @@ export class EntryEditModal extends Modal {
     const imageBtn = toolbar.createEl("button", { type: "button", cls: "lc-modal-toolbar-btn", text: "🖼 " + t("insertImage") });
 
      const ta = textWrap.createEl("textarea", {
-       cls: "lc-modal-textarea",
-       attr: { rows: "6", placeholder: t("entryTextPlaceholder") },
+       cls: "lc-modal-textarea lc-modal-textarea-auto",
+       attr: { rows: "3", placeholder: t("entryTextPlaceholder") },
      });
      const initialText = this.initial.rawText ?? this.initial.text;
      // Теги выносятся в поле тегов, из текста убираются
@@ -1683,9 +1759,13 @@ export class EntryEditModal extends Modal {
       }
       previewContainer.toggleClass("has-content", refs.length > 0);
     };
-    ta.addEventListener("input", updatePreview);
+    ta.addEventListener("input", () => {
+      updatePreview();
+      autoGrowTextarea(ta);
+    });
     // Инициализация превью для начального текста
     updatePreview();
+    autoGrowTextarea(ta);
 
     // Обработчики кнопок тулбара
     const insertAtCursor = (text: string) => {

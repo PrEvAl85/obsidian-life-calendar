@@ -239,6 +239,34 @@
 .lc-modal-textarea {
   min-height: 120px;
 }
+.lc-modal-entry {
+  max-height: 80vh;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+/* Десктоп: модалка записи шире стандартной, чтобы поле текста не упиралось в край */
+@media (min-width: 769px) {
+  .lc-modal-wide {
+    width: 560px;
+    max-width: 100%;
+  }
+}
+/* Мобильные: поле растёт само до 3 строк (js), дальше текст прокручивается
+   внутри поля, чтобы последняя строка не пряталась за клавиатурой */
+.lc-modal-textarea-auto {
+  min-height: 0;
+  resize: none;
+  overflow-y: hidden;
+  line-height: 1.4;
+}
+/* Десктоп: поле текста выше и его можно растянуть за угол */
+@media (min-width: 769px) {
+  .lc-modal-textarea-auto {
+    min-height: 150px;
+    resize: vertical;
+    overflow-y: auto;
+  }
+}
 .lc-modal-row {
   display: flex;
   gap: 8px;
@@ -641,6 +669,49 @@
 }
 .lc-image-dropzone input[type="file"] {
   display: none;
+}
+.lc-image-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  max-height: 50vh;
+  overflow-y: auto;
+  padding: 2px;
+}
+.lc-image-item {
+  width: 96px;
+  cursor: pointer;
+  border: 1px solid var(--background-modifier-border);
+  border-radius: 6px;
+  overflow: hidden;
+  background: var(--background-secondary);
+  padding-bottom: 4px;
+  transition: border-color 0.15s ease;
+}
+.lc-image-item:hover {
+  border-color: var(--text-accent);
+}
+.lc-image-thumb {
+  display: block;
+  width: 100%;
+  height: 72px;
+  object-fit: cover;
+  background: var(--background-primary-alt);
+}
+.lc-image-name {
+  font-size: 11px;
+  color: var(--text-muted);
+  padding: 4px 4px 0;
+  text-align: center;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.lc-image-empty {
+  padding: 24px 0;
+  text-align: center;
+  color: var(--text-muted);
+  width: 100%;
 }
 
 /* ===== Feed (Поток) ===== */
